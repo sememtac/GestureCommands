@@ -65,6 +65,11 @@ local PRE_CLICK = [[
 		if down then
 			control:SetAttribute("placing", false);
 			control:SetAttribute("placeSlot", self:GetID());
+			-- Drop any gesture press whose release never arrived (e.g. the window took focus mid-press).
+			pressedSlot = nil;
+			pressedGesture = nil;
+			armed = 0;
+			control:SetAttribute("armed", 0);
 		end
 		return false;
 	end
