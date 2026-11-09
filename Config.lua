@@ -1,20 +1,51 @@
--- Gesture Commands: setup window. A list of gestures on the left; on the right, three drop slots for the
--- selected gesture (Tap trigger, Hold, Long hold). Drag a spell, item, toy, mount or macro onto a slot;
--- right-click a slot to clear it. Editing is locked in combat because the secure configuration can only
--- be republished out of combat.
+-- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
+-- and icon (edited like a macro's) and three drop slots: Tap (trigger), Hold, Long hold. Drag a spell, item,
+-- toy, mount or macro onto a slot; right-click a slot to clear it; drag a gesture (or press Place on bar) to
+-- put it on the crossbar. Editing is locked in combat because the secure configuration and the gesture
+-- macros can only change out of combat. The window and the name/icon popup register with the gamepad UI so
+-- they can be focused and navigated with a controller.
 
 local _, ns = ...;
 
 local MAX_ROWS = 10;
 local SLOT_SIZE = 40;
+local QUESTION_MARK_ICON = 134400;
 local SLOT_HINTS = {
-	trigger = "The button you press: drop a spell, item, or a macro that shows a spell here. Then drag this box (or the gesture in the list) onto your crossbar - that slot becomes the gesture. A tap does what the slot normally does.",
+	trigger = "The button you press: drop a spell, item, or a macro that shows a spell here. A tap does this.",
 	hold = "Cast when you hold the button (about 0.5 s). Drag a spell, item, toy, mount or macro here.",
 	long = "Cast when you keep holding the button (about 1.4 s). Drag a spell, item, toy, mount or macro here.",
 };
 
 local selected = nil;
-local frame, rows, slots, statusText, enableCheck, holdText, hold2Text;
+local frame, popup, rows, slots, statusText, enableCheck, holdText, hold2Text;
+
+-------------------------------------------------------------------------------
+-- Gamepad UI: register our windows with the controller cursor (out of combat only; Blizzard refuses it in
+-- combat). Both calls are SecureHelper-wrapped by Blizzard for use by outside code.
+-------------------------------------------------------------------------------
+
+local function GetFrameControlsManager()
+	return InputUtil and InputUtil.IsGamepadUIEnabled() and GamepadMode and GamepadMode.FrameControlsManager;
+end
+
+local function GamepadFrameShown(window, isPopup)
+	local manager = GetFrameControlsManager();
+	if manager and not InCombatLockdown() and pcall(manager.FrameShown, manager, window, isPopup, true) then
+		window.gamepadRegistered = true;
+	end
+end
+
+local function GamepadFrameHidden(window)
+	local manager = GamepadMode and GamepadMode.FrameControlsManager;
+	if window.gamepadRegistered == true and manager and not InCombatLockdown() then
+		pcall(manager.FrameHidden, manager, window);
+		window.gamepadRegistered = false;
+	end
+end
+
+-------------------------------------------------------------------------------
+-- Refresh
+-------------------------------------------------------------------------------
 
 local function Refresh()
 	if not (frame and frame:IsShown()) then
@@ -29,11 +60,11 @@ local function Refresh()
 	for index, row in ipairs(rows) do
 		local gesture = gestures[index];
 		if gesture then
-			local triggerName, triggerIcon = ns.GetActionDisplay(gesture.trigger);
 			local holdName = ns.GetActionDisplay(gesture.hold);
 			local longName = ns.GetActionDisplay(gesture.long);
-			row.Icon:SetTexture(triggerIcon or 134400);
-			row.Text:SetText(("%s\n|cff999999%s / %s|r"):format(triggerName or "(no trigger yet)", holdName or "-", longName or "-"));
+			row.Icon:SetTexture(ns.GetGestureIcon(gesture));
+			row.Text:SetText(("%s\n|cff999999%s / %s|r"):format(gesture.trigger and ns.GetGestureName(gesture) or "(new gesture)",
+				holdName or "-", longName or "-"));
 			row.Selected:SetShown(index == selected);
 			row.Conflict:SetShown(ns.conflicts and ns.conflicts[index] ~= nil);
 			row:Show();
@@ -44,15 +75,25 @@ local function Refresh()
 	frame.TooMany:SetShown(#gestures > MAX_ROWS);
 
 	local gesture = selected and gestures[selected];
+	local editor = frame.Editor;
+	editor.Header:SetShown(gesture ~= nil);
+	if gesture then
+		editor.Header.Icon:SetTexture(ns.GetGestureIcon(gesture));
+		editor.Header.Name:SetText(gesture.trigger and ns.GetGestureName(gesture) or "|cff999999Give it a Tap trigger first|r");
+		editor.Header.Edit:SetEnabled(gesture.trigger ~= nil);
+		editor.Header.Place:SetEnabled(gesture.trigger ~= nil);
+	end
 	for mode, slot in pairs(slots) do
 		local name, icon = ns.GetActionDisplay(gesture and gesture[mode]);
 		slot.Icon:SetTexture(icon);
 		slot.Icon:SetShown(icon ~= nil);
 		slot.Name:SetText(name or (gesture and "|cff999999empty|r" or ""));
 		slot:SetEnabled(gesture ~= nil);
+		slot.Label:SetShown(gesture ~= nil);
+		slot:SetShown(gesture ~= nil);
 	end
-	frame.Editor.Empty:SetShown(gesture == nil);
-	frame.Editor.Delete:SetEnabled(gesture ~= nil);
+	editor.Empty:SetShown(gesture == nil);
+	editor.Delete:SetEnabled(gesture ~= nil);
 
 	enableCheck:SetChecked(db.enabled ~= false);
 	holdText:SetText(("Hold: %d ticks (~%.1f s)"):format(ns.GetHoldTicks(), ns.GetHoldTicks() * 0.2));
@@ -68,7 +109,7 @@ local function Refresh()
 	elseif db.enabled == false then
 		status = "Off - tick Enabled to use your gestures.";
 	else
-		status = "|cff33ff99On.|r Press /gestures test to check your setup.";
+		status = "|cff33ff99On.|r Press Test to check your setup.";
 	end
 	statusText:SetText(status);
 end
@@ -81,6 +122,100 @@ local function CanEdit()
 	end
 	return true;
 end
+
+-------------------------------------------------------------------------------
+-- Name & icon popup (Blizzard's macro-style icon selector)
+-------------------------------------------------------------------------------
+
+local PopupMixin = {};
+
+-- Not the template's OnShow/OnHide: in gamepad mode those enter/leave a SmartNavigation focus group,
+-- which only Blizzard's own code may do (addon calls show "Interface action blocked").
+function PopupMixin:OnShow()
+	local border = self.BorderBox;
+	border.SelectedIconArea.SelectedIconButton:SetIconSelector(self);
+	border.IconSelectorEditBox:SetIconSelector(self);
+	self.iconDataProvider = self.iconDataProvider or CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Spellbook);
+	self:SetIconFilter(IconSelectorPopupFrameIconFilterTypes.All);
+	self:Update();
+	border.IconSelectorEditBox:OnTextChanged();
+
+	self.IconSelector:SetSelectedCallback(function(_, icon)
+		border.SelectedIconArea.SelectedIconButton:SetIconTexture(icon);
+		self:SetSelectedIconText();
+	end);
+
+	-- Choosing by dragging an action onto the popup isn't wired up, so always show the icon grid; and keep
+	-- OK/Cancel visible with a controller (the template hides them in favour of a secure-only footer).
+	border.IconDragArea:Hide();
+	border.IconSelectionText:Show();
+	border.IconTypeDropdown:Show();
+	self.IconSelector:Show();
+	border.OkayButton:Show();
+	border.CancelButton:Show();
+
+	GamepadFrameShown(self, true);
+end
+
+function PopupMixin:OnHide()
+	GamepadFrameHidden(self);
+end
+
+function PopupMixin:Update()
+	local gesture = ns.DB().gestures[self.gestureIndex];
+	if not gesture then
+		return;
+	end
+	local border = self.BorderBox;
+	local icon = gesture.icon or QUESTION_MARK_ICON;
+	border.IconSelectorEditBox:SetText(ns.GetGestureName(gesture));
+	border.IconSelectorEditBox:HighlightText();
+	self.IconSelector:SetSelectedIndex(self:GetIndexOfIcon(icon));
+	border.SelectedIconArea.SelectedIconButton:SetIconTexture(icon);
+
+	self.IconSelector:SetSelectionsDataProvider(GenerateClosure(self.GetIconByIndex, self), GenerateClosure(self.GetNumIcons, self));
+	self.IconSelector:ScrollToSelectedIndex();
+	self:SetSelectedIconText();
+end
+
+function PopupMixin:OkayButton_OnClick()
+	if CanEdit() then
+		local icon = self.BorderBox.SelectedIconArea.SelectedIconButton:GetIconTexture();
+		ns.SetGestureNameIcon(self.gestureIndex, self.BorderBox.IconSelectorEditBox:GetText(), icon);
+	end
+	self:Hide();
+end
+
+function PopupMixin:CancelButton_OnClick()
+	self:Hide();
+end
+
+local function OpenNameIconPopup()
+	if not (CanEdit() and selected) then
+		return;
+	end
+	if not popup then
+		popup = CreateFrame("Frame", "GestureCommandsIconPopup", frame, "IconSelectorPopupFrameTemplate");
+		Mixin(popup, PopupMixin);
+		popup:SetScript("OnShow", popup.OnShow);
+		popup:SetScript("OnHide", popup.OnHide);
+		popup:SetScript("OnEvent", nil);
+		popup:SetPoint("TOPLEFT", frame, "TOPRIGHT", 0, 0);
+		popup:SetFrameStrata("DIALOG");
+		popup:SetToplevel(true);
+		popup:EnableMouse(true);
+		popup.BorderBox.EditBoxHeaderText:SetText("Gesture name (shown on the macro):");
+		popup.BorderBox.IconSelectorEditBox:SetMaxLetters(16);
+		popup:Hide();
+	end
+	popup.gestureIndex = selected;
+	popup:Hide();
+	popup:Show();
+end
+
+-------------------------------------------------------------------------------
+-- Drop slots
+-------------------------------------------------------------------------------
 
 local function OnSlotReceive(slot)
 	if not (CanEdit() and selected) then
@@ -106,13 +241,20 @@ local function OnSlotReceive(slot)
 	ns.SetGestureAction(selected, slot.mode, action);
 end
 
+local function PlaceSelected()
+	if selected then
+		ns.PickupGesture(selected);
+	end
+end
+
 local function CreateSlot(parent, mode, y)
 	local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal");
 	label:SetPoint("TOPLEFT", 16, y);
-	label:SetText(ns.MODE_LABELS[mode] == "Tap" and "Tap (trigger)" or ns.MODE_LABELS[mode]);
+	label:SetText(mode == "trigger" and "Tap (trigger)" or ns.MODE_LABELS[mode]);
 
 	local slot = CreateFrame("Button", nil, parent);
 	slot.mode = mode;
+	slot.Label = label;
 	slot:SetSize(SLOT_SIZE, SLOT_SIZE);
 	slot:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -6);
 	slot:RegisterForClicks("LeftButtonUp", "RightButtonUp");
@@ -132,13 +274,6 @@ local function CreateSlot(parent, mode, y)
 	slot.Name:SetJustifyH("LEFT");
 
 	slot:SetScript("OnReceiveDrag", OnSlotReceive);
-	if mode == "trigger" then
-		slot:SetScript("OnDragStart", function()
-			if selected then
-				ns.PickupTrigger(selected);
-			end
-		end);
-	end
 	slot:SetScript("OnClick", function(self, mouseButton)
 		if mouseButton == "RightButton" then
 			if CanEdit() and selected then
@@ -189,9 +324,62 @@ local function AdjustTicks(key, delta)
 	ns.Publish();
 end
 
+-------------------------------------------------------------------------------
+-- Window
+-------------------------------------------------------------------------------
+
+local function CreateEditorHeader(editor)
+	local header = CreateFrame("Frame", nil, editor);
+	header:SetPoint("TOPLEFT", 0, 0);
+	header:SetPoint("TOPRIGHT", 0, 0);
+	header:SetHeight(60);
+	editor.Header = header;
+
+	local iconButton = CreateFrame("Button", nil, header);
+	iconButton:SetSize(40, 40);
+	iconButton:SetPoint("TOPLEFT", 12, -12);
+	iconButton:RegisterForDrag("LeftButton");
+	header.Icon = iconButton:CreateTexture(nil, "ARTWORK");
+	header.Icon:SetAllPoints();
+	iconButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD");
+	iconButton:SetScript("OnClick", OpenNameIconPopup);
+	iconButton:SetScript("OnDragStart", PlaceSelected);
+	iconButton:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+		GameTooltip:SetText("Gesture");
+		GameTooltip:AddLine("Click to change the name and icon. Drag onto your crossbar to place it.", 1, 1, 1, true);
+		GameTooltip:Show();
+	end);
+	iconButton:SetScript("OnLeave", GameTooltip_Hide);
+
+	header.Name = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge");
+	header.Name:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 8, -1);
+	header.Name:SetPoint("RIGHT", -10, 0);
+	header.Name:SetJustifyH("LEFT");
+
+	header.Edit = CreateFrame("Button", nil, header, "UIPanelButtonTemplate");
+	header.Edit:SetSize(110, 20);
+	header.Edit:SetPoint("BOTTOMLEFT", iconButton, "BOTTOMRIGHT", 8, 0);
+	header.Edit:SetText("Name & icon");
+	header.Edit:SetScript("OnClick", OpenNameIconPopup);
+
+	header.Place = CreateFrame("Button", nil, header, "UIPanelButtonTemplate");
+	header.Place:SetSize(110, 20);
+	header.Place:SetPoint("LEFT", header.Edit, "RIGHT", 6, 0);
+	header.Place:SetText("Place on bar");
+	header.Place:SetScript("OnClick", PlaceSelected);
+	header.Place:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+		GameTooltip:SetText("Place on bar");
+		GameTooltip:AddLine("Puts the gesture's macro on your cursor - drop it on a crossbar slot. The slot keeps the gesture's icon; a tap casts the Tap trigger.", 1, 1, 1, true);
+		GameTooltip:Show();
+	end);
+	header.Place:SetScript("OnLeave", GameTooltip_Hide);
+end
+
 local function CreateConfigFrame()
 	frame = CreateFrame("Frame", "GestureCommandsFrame", UIParent, "BasicFrameTemplateWithInset");
-	frame:SetSize(560, 480);
+	frame:SetSize(560, 500);
 	frame:SetPoint("CENTER");
 	frame:SetFrameStrata("DIALOG");
 	frame:SetMovable(true);
@@ -199,7 +387,16 @@ local function CreateConfigFrame()
 	frame:RegisterForDrag("LeftButton");
 	frame:SetScript("OnDragStart", frame.StartMoving);
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing);
-	frame:SetScript("OnShow", Refresh);
+	frame:SetScript("OnShow", function(self)
+		Refresh();
+		GamepadFrameShown(self, false);
+	end);
+	frame:SetScript("OnHide", function(self)
+		if popup then
+			popup:Hide();
+		end
+		GamepadFrameHidden(self);
+	end);
 	frame:Hide();
 	tinsert(UISpecialFrames, "GestureCommandsFrame");
 
@@ -211,7 +408,7 @@ local function CreateConfigFrame()
 	intro:SetPoint("TOPLEFT", 14, -30);
 	intro:SetPoint("TOPRIGHT", -14, -30);
 	intro:SetJustifyH("LEFT");
-	intro:SetText("Make a gesture, give it a Tap trigger and Hold / Long hold actions, then drag the gesture from the list onto your crossbar. A tap does what the slot normally does; holds cast your actions.");
+	intro:SetText("A gesture is a macro for your gamepad: give it a Tap trigger plus Hold / Long hold actions, a name and an icon, then place it on your crossbar. A tap does the trigger; holds cast your actions.");
 
 	-- Gesture list
 	rows = {};
@@ -242,7 +439,7 @@ local function CreateConfigFrame()
 		row:SetScript("OnDragStart", function()
 			selected = index;
 			Refresh();
-			ns.PickupTrigger(index);
+			ns.PickupGesture(index);
 		end);
 		row:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
@@ -273,10 +470,11 @@ local function CreateConfigFrame()
 	editor:SetPoint("TOPLEFT", 256, -60);
 	editor:SetPoint("BOTTOMRIGHT", -12, 116);
 	frame.Editor = editor;
+	CreateEditorHeader(editor);
 	slots = {
-		trigger = CreateSlot(editor, "trigger", -12),
-		hold = CreateSlot(editor, "hold", -82),
-		long = CreateSlot(editor, "long", -152),
+		trigger = CreateSlot(editor, "trigger", -66),
+		hold = CreateSlot(editor, "hold", -136),
+		long = CreateSlot(editor, "long", -206),
 	};
 	editor.Empty = editor:CreateFontString(nil, "OVERLAY", "GameFontDisable");
 	editor.Empty:SetPoint("CENTER");
@@ -344,10 +542,9 @@ local function RegisterSettings()
 	open:SetSize(200, 24);
 	open:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -12);
 	open:SetText("Open Gesture Commands");
+	-- Opens on top of the Settings panel (DIALOG strata); closing Settings from addon code would run
+	-- Blizzard's panel manager tainted.
 	open:SetScript("OnClick", function()
-		if SettingsPanel and SettingsPanel:IsShown() then
-			HideUIPanel(SettingsPanel);
-		end
 		if not (frame and frame:IsShown()) then
 			ns.ToggleConfig();
 		end

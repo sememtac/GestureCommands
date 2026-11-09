@@ -2,8 +2,8 @@
 
 Tap, hold and long-hold gestures for anything on your gamepad crossbar in **World of Warcraft: Forever**.
 
-A gesture attaches to something already on your crossbar: a spell, an item, or a macro that shows a spell.
-When you press that button:
+A gesture is like a macro for your gamepad: it has a **name and icon** (edited just like a macro's), a **Tap**
+action, and **Hold** / **Long hold** actions. Place it on your crossbar, and when you press that button:
 
 | You do | You feel / see | On release |
 |---|---|---|
@@ -18,17 +18,24 @@ icon and cooldown, and every other button works exactly as before.
 ## Setup
 
 1. Type `/gestures` (or Options > AddOns > Gesture Commands).
-2. **New gesture**, then drag onto the three boxes:
-   - **Tap (trigger)**: the spell or item that is on your crossbar (or a macro that shows a spell).
+2. **New gesture**, then drop onto the three boxes:
+   - **Tap (trigger)**: a spell or item (or a macro that shows a spell). A tap casts it.
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. Drag the gesture from the list onto your crossbar. That slot is now a gesture button (a slot that
-   already has the trigger spell or item works too).
-4. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
+3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
+4. **Place on bar** (or drag the gesture from the list) and drop it on a crossbar slot.
+5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
-### Custom tap actions
+Each gesture is stored as one of your **character macros** (with your name and icon, casting the Tap
+action), so it shows up in the Macros window too. Deleting the gesture deletes its macro. A slot that
+holds the Tap spell or item directly also works as the gesture.
 
-A macro whose first line shows a spell (`#showtooltip Lightning Bolt`) triggers that spell's gesture, and a
-tap runs the macro. So for a dedicated gesture button, put a macro on your crossbar and make it the trigger.
+### With a controller
+
+The window works with the gamepad UI: it joins Forever's controller navigation like Blizzard's own windows,
+so you can move between it and other windows and navigate its buttons with the controller. Pick up a
+spell (e.g. from your spellbook), move to a box and press the select button to drop it there; use
+**Place on bar** to put a gesture on your cursor and drop it on a crossbar slot.
+
 
 ## Commands
 
@@ -49,6 +56,7 @@ tap runs the macro. So for a dedicated gesture button, put a macro on your cross
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.
 - Gestures can only be edited out of combat; using them works in combat.
+- Each gesture uses one character macro slot (30 per character).
 - If you use **Totem Commands**, turn it off (`/totemcommands off`): both work on the same buttons.
 
 ## How it works

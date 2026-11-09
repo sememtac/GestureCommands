@@ -428,13 +428,110 @@ end
 -- Gestures
 -------------------------------------------------------------------------------
 
+-- Each gesture is backed by a character macro with the gesture's name and icon whose body casts the Tap
+-- trigger. On the crossbar the macro reports the trigger spell/item, so the engine treats the slot as the
+-- gesture; a tap runs the macro. Macros are only created/edited/deleted out of combat.
+local MACRO_NAME_LENGTH = 16;
+local QUESTION_MARK_ICON = 134400; -- Shows the macro's spell/item icon automatically.
+
+local function TruncateUTF8(text, maxChars)
+	local out, count = {}, 0;
+	for char in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+		count = count + 1;
+		if count > maxChars then
+			break;
+		end
+		table.insert(out, char);
+	end
+	return table.concat(out);
+end
+
+function ns.GetGestureName(gesture)
+	if gesture.name and gesture.name ~= "" then
+		return gesture.name;
+	end
+	local triggerName = GetActionDisplay(gesture.trigger);
+	return TruncateUTF8(triggerName or "Gesture", MACRO_NAME_LENGTH);
+end
+
+function ns.GetGestureIcon(gesture)
+	if gesture.icon then
+		return gesture.icon;
+	end
+	local _, icon = GetActionDisplay(gesture.trigger);
+	return icon or QUESTION_MARK_ICON;
+end
+
+local function GetMacroBody(trigger)
+	if not trigger then
+		return "";
+	elseif trigger.kind == "item" then
+		return "/use item:" .. trigger.id;
+	end
+	-- By name, so a ranked spell casts the highest rank the character knows.
+	return "/cast " .. (C_Spell.GetSpellName(trigger.id) or trigger.name or "");
+end
+
+local function GetGestureMacroIndex(gesture)
+	local index = gesture.macro and GetMacroIndexByName(gesture.macro);
+	return (index and index > 0) and index or nil;
+end
+
+-- A macro name that no other macro is using.
+local function GetFreeMacroName(name, ownIndex)
+	local candidate, suffix = name, 1;
+	while true do
+		local index = GetMacroIndexByName(candidate);
+		if not index or index == 0 or index == ownIndex then
+			return candidate;
+		end
+		suffix = suffix + 1;
+		local tail = " " .. suffix;
+		candidate = TruncateUTF8(name, MACRO_NAME_LENGTH - #tail) .. tail;
+	end
+end
+
+-- Creates or updates the gesture's macro. Returns its index, or nil (in combat, or no free macro slot).
+local function SyncMacro(gesture)
+	if InCombatLockdown() or not gesture.trigger then
+		return nil;
+	end
+	local index = GetGestureMacroIndex(gesture);
+	local name = GetFreeMacroName(ns.GetGestureName(gesture), index);
+	local icon = gesture.icon or QUESTION_MARK_ICON;
+	local body = GetMacroBody(gesture.trigger);
+	if index then
+		local oldName, oldIcon, oldBody = GetMacroInfo(index);
+		if oldName ~= name or oldIcon ~= icon or oldBody ~= body then
+			index = EditMacro(index, name, icon, body);
+		end
+	else
+		local ok, newIndex = pcall(CreateMacro, name, icon, body, true);
+		if not (ok and newIndex and newIndex > 0) then
+			Print("couldn't create this gesture's macro - your character macros may be full (Escape > Macros).");
+			return nil;
+		end
+		index = newIndex;
+	end
+	gesture.macro = name;
+	return index;
+end
+ns.SyncMacro = SyncMacro;
+
 function ns.AddGesture(gesture)
-	table.insert(DB().gestures, gesture or {});
+	gesture = gesture or {};
+	table.insert(DB().gestures, gesture);
+	SyncMacro(gesture);
 	Publish();
 	return #DB().gestures;
 end
 
 function ns.RemoveGesture(index)
+	local gesture = DB().gestures[index];
+	local macroIndex = gesture and not InCombatLockdown() and GetGestureMacroIndex(gesture);
+	if macroIndex then
+		DeleteMacro(macroIndex);
+	end
 	table.remove(DB().gestures, index);
 	Publish();
 end
@@ -445,7 +542,45 @@ function ns.SetGestureAction(index, mode, action)
 		return;
 	end
 	gesture[mode] = action;
+	if mode == "trigger" then
+		SyncMacro(gesture);
+	end
 	Publish();
+end
+
+-- Name and icon, like a macro's. An empty name or nil icon goes back to the Tap trigger's.
+function ns.SetGestureNameIcon(index, name, icon)
+	local gesture = DB().gestures[index];
+	if not gesture then
+		return;
+	end
+	name = name and strtrim((name:gsub("\"", ""))) or "";
+	gesture.name = name ~= "" and TruncateUTF8(name, MACRO_NAME_LENGTH) or nil;
+	gesture.icon = (icon and icon ~= QUESTION_MARK_ICON) and icon or nil;
+	SyncMacro(gesture);
+	if ns.OnPublished then
+		ns.OnPublished();
+	end
+end
+
+-- Puts the gesture on the cursor - its macro, or the trigger itself if the macro can't be made - so it can
+-- be dropped on a crossbar slot.
+function ns.PickupGesture(index)
+	if InCombatLockdown() then
+		Print("can't place actions in combat.");
+		return false;
+	end
+	local gesture = DB().gestures[index];
+	if not (gesture and gesture.trigger) then
+		Print("set this gesture's Tap (trigger) first.");
+		return false;
+	end
+	local macroIndex = SyncMacro(gesture);
+	if macroIndex then
+		PickupMacro(macroIndex);
+		return true;
+	end
+	return ns.PickupTrigger(index);
 end
 
 -- Puts the gesture's trigger on the cursor so it can be dropped on a crossbar slot; that slot then has the
