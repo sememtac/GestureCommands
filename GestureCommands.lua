@@ -512,6 +512,10 @@ local function SyncMacro(gesture)
 	local index = GetGestureMacroIndex(gesture);
 	local name = GetFreeMacroName(ns.GetGestureName(gesture), index);
 	local icon = gesture.icon or QUESTION_MARK_ICON;
+	if type(icon) == "string" then
+		-- Macros take an icon known by path as its file name, without the folder.
+		icon = icon:match("[^\\/]+$") or icon;
+	end
 	local body = GetMacroBody(gesture.trigger);
 	if index then
 		local oldName, oldIcon, oldBody = GetMacroInfo(index);

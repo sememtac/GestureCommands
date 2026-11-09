@@ -8,4 +8,6 @@
 ## X-Website: https://github.com/sememtac/GestureCommands
 
 GestureCommands.lua
+Navigation.lua
+Picker.lua
 Config.lua

@@ -1,47 +1,25 @@
 -- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
--- and icon (edited like a macro's) and three drop slots: Tap (trigger), Hold, Long hold. Drag a spell, item,
--- toy, mount or macro onto a slot; right-click a slot to clear it; drag a gesture (or press Place on bar) to
--- put it on the crossbar. Editing is locked in combat because the secure configuration and the gesture
--- macros can only change out of combat. The window and the name/icon popup register with the gamepad UI so
--- they can be focused and navigated with a controller.
+-- and icon (edited like a macro's) and three slots: Tap (trigger), Hold, Long hold. Click a slot to choose a
+-- spell, item, mount or macro for it, or drag one onto it; right-click (X on a controller) clears it. Drag a
+-- gesture, or press Place on bar, to put it on the crossbar. Editing is locked in combat because the secure
+-- configuration and the gesture macros can only change out of combat.
+--
+-- Controller: the window doesn't join Blizzard's gamepad UI (that taints it); Navigation.lua gives it its
+-- own D-pad navigation while it's open.
 
 local _, ns = ...;
 
 local MAX_ROWS = 10;
 local SLOT_SIZE = 40;
-local QUESTION_MARK_ICON = 134400;
 local SLOT_HINTS = {
-	trigger = "The button you press: drop a spell, item, or a macro that shows a spell here. A tap does this.",
-	hold = "Cast when you hold the button (about 0.5 s). Drag a spell, item, toy, mount or macro here.",
-	long = "Cast when you keep holding the button (about 1.4 s). Drag a spell, item, toy, mount or macro here.",
+	trigger = "The button you press: a spell or item (or a macro that shows one). A tap does this.",
+	hold = "Cast when you hold the button (about 0.5 s): a spell, item, toy, mount or macro.",
+	long = "Cast when you keep holding the button (about 1.4 s): a spell, item, toy, mount or macro.",
 };
 
 local selected = nil;
-local frame, popup, rows, slots, statusText, enableCheck, holdText, hold2Text;
-
--------------------------------------------------------------------------------
--- Gamepad UI: register our windows with the controller cursor (out of combat only; Blizzard refuses it in
--- combat). Both calls are SecureHelper-wrapped by Blizzard for use by outside code.
--------------------------------------------------------------------------------
-
-local function GetFrameControlsManager()
-	return InputUtil and InputUtil.IsGamepadUIEnabled() and GamepadMode and GamepadMode.FrameControlsManager;
-end
-
-local function GamepadFrameShown(window, isPopup)
-	local manager = GetFrameControlsManager();
-	if manager and not InCombatLockdown() and pcall(manager.FrameShown, manager, window, isPopup, true) then
-		window.gamepadRegistered = true;
-	end
-end
-
-local function GamepadFrameHidden(window)
-	local manager = GamepadMode and GamepadMode.FrameControlsManager;
-	if window.gamepadRegistered == true and manager and not InCombatLockdown() then
-		pcall(manager.FrameHidden, manager, window);
-		window.gamepadRegistered = false;
-	end
-end
+local frame, rows, slots, statusText, enableCheck, holdText, hold2Text;
+local navControls = {};
 
 -------------------------------------------------------------------------------
 -- Refresh
@@ -87,7 +65,7 @@ local function Refresh()
 		local name, icon = ns.GetActionDisplay(gesture and gesture[mode]);
 		slot.Icon:SetTexture(icon);
 		slot.Icon:SetShown(icon ~= nil);
-		slot.Name:SetText(name or (gesture and "|cff999999empty|r" or ""));
+		slot.Name:SetText(name or (gesture and "|cff999999empty - click to choose|r" or ""));
 		slot:SetEnabled(gesture ~= nil);
 		slot.Label:SetShown(gesture ~= nil);
 		slot:SetShown(gesture ~= nil);
@@ -112,6 +90,7 @@ local function Refresh()
 		status = "|cff33ff99On.|r Press Test to check your setup.";
 	end
 	statusText:SetText(status);
+	ns.Nav.Refresh();
 end
 ns.OnPublished = Refresh;
 
@@ -122,107 +101,34 @@ local function CanEdit()
 	end
 	return true;
 end
+ns.CanEdit = CanEdit;
+
+local function OpenNameIconPicker()
+	if CanEdit() and selected then
+		ns.OpenIconPicker(frame, selected);
+	end
+end
 
 -------------------------------------------------------------------------------
--- Name & icon popup (Blizzard's macro-style icon selector)
+-- Slots
 -------------------------------------------------------------------------------
 
-local PopupMixin = {};
-
--- Not the template's OnShow/OnHide: in gamepad mode those enter/leave a SmartNavigation focus group,
--- which only Blizzard's own code may do (addon calls show "Interface action blocked").
-function PopupMixin:OnShow()
-	local border = self.BorderBox;
-	border.SelectedIconArea.SelectedIconButton:SetIconSelector(self);
-	border.IconSelectorEditBox:SetIconSelector(self);
-	self.iconDataProvider = self.iconDataProvider or CreateAndInitFromMixin(IconDataProviderMixin, IconDataProviderExtraType.Spellbook);
-	self:SetIconFilter(IconSelectorPopupFrameIconFilterTypes.All);
-	self:Update();
-	border.IconSelectorEditBox:OnTextChanged();
-
-	self.IconSelector:SetSelectedCallback(function(_, icon)
-		border.SelectedIconArea.SelectedIconButton:SetIconTexture(icon);
-		self:SetSelectedIconText();
-	end);
-
-	-- Choosing by dragging an action onto the popup isn't wired up, so always show the icon grid; and keep
-	-- OK/Cancel visible with a controller (the template hides them in favour of a secure-only footer).
-	border.IconDragArea:Hide();
-	border.IconSelectionText:Show();
-	border.IconTypeDropdown:Show();
-	self.IconSelector:Show();
-	border.OkayButton:Show();
-	border.CancelButton:Show();
-
-	GamepadFrameShown(self, true);
-end
-
-function PopupMixin:OnHide()
-	GamepadFrameHidden(self);
-end
-
-function PopupMixin:Update()
-	local gesture = ns.DB().gestures[self.gestureIndex];
-	if not gesture then
-		return;
-	end
-	local border = self.BorderBox;
-	local icon = gesture.icon or QUESTION_MARK_ICON;
-	border.IconSelectorEditBox:SetText(ns.GetGestureName(gesture));
-	border.IconSelectorEditBox:HighlightText();
-	self.IconSelector:SetSelectedIndex(self:GetIndexOfIcon(icon));
-	border.SelectedIconArea.SelectedIconButton:SetIconTexture(icon);
-
-	self.IconSelector:SetSelectionsDataProvider(GenerateClosure(self.GetIconByIndex, self), GenerateClosure(self.GetNumIcons, self));
-	self.IconSelector:ScrollToSelectedIndex();
-	self:SetSelectedIconText();
-end
-
-function PopupMixin:OkayButton_OnClick()
-	if CanEdit() then
-		local icon = self.BorderBox.SelectedIconArea.SelectedIconButton:GetIconTexture();
-		ns.SetGestureNameIcon(self.gestureIndex, self.BorderBox.IconSelectorEditBox:GetText(), icon);
-	end
-	self:Hide();
-end
-
-function PopupMixin:CancelButton_OnClick()
-	self:Hide();
-end
-
-local function OpenNameIconPopup()
+-- Sets a slot's action; a trigger must be something a crossbar slot shows. Returns true if it was taken.
+local function AssignAction(mode, action)
 	if not (CanEdit() and selected) then
-		return;
+		return false;
 	end
-	if not popup then
-		popup = CreateFrame("Frame", "GestureCommandsIconPopup", frame, "IconSelectorPopupFrameTemplate");
-		Mixin(popup, PopupMixin);
-		popup:SetScript("OnShow", popup.OnShow);
-		popup:SetScript("OnHide", popup.OnHide);
-		popup:SetScript("OnEvent", nil);
-		popup:SetPoint("TOPLEFT", frame, "TOPRIGHT", 0, 0);
-		-- HIGH like Blizzard's macro popup: the template pins its icon grid to HIGH, so a higher strata would
-		-- put the popup's dark background over the icons.
-		popup:SetFrameStrata("HIGH");
-		popup:SetToplevel(true);
-		popup:EnableMouse(true);
-		popup.BorderBox.EditBoxHeaderText:SetText("Gesture name (shown on the macro):");
-		popup.BorderBox.IconSelectorEditBox:SetMaxLetters(16);
-		-- Controller: B closes the popup.
-		popup.SmartNavigationCloseHandler = function(self)
-			self:Hide();
-			return true;
-		end;
-		popup:Hide();
+	if action and mode == "trigger" then
+		local trigger = ns.MakeTrigger(action);
+		if not trigger then
+			ns.Print("a trigger must be a spell or item, or a macro that shows one (#showtooltip).");
+			return false;
+		end
+		action = trigger;
 	end
-	popup.gestureIndex = selected;
-	popup:Hide();
-	popup:Show();
+	ns.SetGestureAction(selected, mode, action);
+	return true;
 end
-
--------------------------------------------------------------------------------
--- Drop slots
--------------------------------------------------------------------------------
 
 local function OnSlotReceive(slot)
 	if not (CanEdit() and selected) then
@@ -235,27 +141,33 @@ local function OnSlotReceive(slot)
 		end
 		return;
 	end
-	if slot.mode == "trigger" then
-		local trigger = ns.MakeTrigger(action);
-		if not trigger then
-			ns.Print("a trigger must be a spell or item, or a macro that shows one (#showtooltip).");
-			ClearCursor();
-			return;
-		end
-		action = trigger;
-	end
 	ClearCursor();
-	ns.SetGestureAction(selected, slot.mode, action);
+	AssignAction(slot.mode, action);
 end
 
--- With a mouse: put the gesture's macro on the cursor to drop on a slot. With a controller there's no way to
--- drop a cursor action on the crossbar, so close the window (focus goes back to the game) and let the next
--- crossbar press choose the slot.
+local function ClearSlot(slot)
+	if CanEdit() and selected then
+		ns.SetGestureAction(selected, slot.mode, nil);
+	end
+end
+
+local function ChooseForSlot(slot)
+	if not (CanEdit() and selected) then
+		return;
+	end
+	ns.OpenActionPicker(frame, selected, slot.mode, function(action)
+		return AssignAction(slot.mode, action);
+	end);
+end
+
+-- With the controller's A button: close the window and let the next crossbar press choose the slot, because
+-- a controller can't drop a cursor action on the crossbar. With the mouse: put the gesture's macro on the
+-- cursor to drop on a slot.
 local function PlaceSelected()
 	if not selected then
 		return;
 	end
-	if GetFrameControlsManager() then
+	if ns.Nav.IsActivating() then
 		local index = selected;
 		frame:Hide();
 		ns.StartPlacing(index);
@@ -290,21 +202,22 @@ local function CreateSlot(parent, mode, y)
 	slot.Name:SetPoint("RIGHT", parent, "RIGHT", -12, 0);
 	slot.Name:SetJustifyH("LEFT");
 
+	slot.OnNavSecondary = ClearSlot;
 	slot:SetScript("OnReceiveDrag", OnSlotReceive);
 	slot:SetScript("OnClick", function(self, mouseButton)
 		if mouseButton == "RightButton" then
-			if CanEdit() and selected then
-				ns.SetGestureAction(selected, self.mode, nil);
-			end
+			ClearSlot(self);
 		elseif GetCursorInfo() then
 			OnSlotReceive(self);
+		else
+			ChooseForSlot(self);
 		end
 	end);
 	slot:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText(label:GetText());
 		GameTooltip:AddLine(SLOT_HINTS[mode], 1, 1, 1, true);
-		GameTooltip:AddLine("Right-click to clear.", 0.6, 0.6, 0.6);
+		GameTooltip:AddLine("Click (A) to choose, or drag one here. Right-click (X) to clear.", 0.6, 0.6, 0.6, true);
 		GameTooltip:Show();
 	end);
 	slot:SetScript("OnLeave", GameTooltip_Hide);
@@ -325,6 +238,8 @@ local function CreateTicksControl(parent, bottom, apply)
 	plus:SetPoint("LEFT", minus, "RIGHT", 4, 0);
 	minus:SetScript("OnClick", function() apply(-1); end);
 	plus:SetScript("OnClick", function() apply(1); end);
+	table.insert(navControls, minus);
+	table.insert(navControls, plus);
 	return text;
 end
 
@@ -359,7 +274,7 @@ local function CreateEditorHeader(editor)
 	header.Icon = iconButton:CreateTexture(nil, "ARTWORK");
 	header.Icon:SetAllPoints();
 	iconButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD");
-	iconButton:SetScript("OnClick", OpenNameIconPopup);
+	iconButton:SetScript("OnClick", OpenNameIconPicker);
 	iconButton:SetScript("OnDragStart", PlaceSelected);
 	iconButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
@@ -368,6 +283,7 @@ local function CreateEditorHeader(editor)
 		GameTooltip:Show();
 	end);
 	iconButton:SetScript("OnLeave", GameTooltip_Hide);
+	header.IconButton = iconButton;
 
 	header.Name = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge");
 	header.Name:SetPoint("TOPLEFT", iconButton, "TOPRIGHT", 8, -1);
@@ -378,7 +294,7 @@ local function CreateEditorHeader(editor)
 	header.Edit:SetSize(110, 20);
 	header.Edit:SetPoint("BOTTOMLEFT", iconButton, "BOTTOMRIGHT", 8, 0);
 	header.Edit:SetText("Name & icon");
-	header.Edit:SetScript("OnClick", OpenNameIconPopup);
+	header.Edit:SetScript("OnClick", OpenNameIconPicker);
 
 	header.Place = CreateFrame("Button", nil, header, "UIPanelButtonTemplate");
 	header.Place:SetSize(110, 20);
@@ -388,7 +304,7 @@ local function CreateEditorHeader(editor)
 	header.Place:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Place on bar");
-		GameTooltip:AddLine("Controller: closes this window - then press the crossbar button you want the gesture on. Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
+		GameTooltip:AddLine("Controller (A): closes this window - then press the crossbar button you want the gesture on. Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	header.Place:SetScript("OnLeave", GameTooltip_Hide);
@@ -404,20 +320,16 @@ local function CreateConfigFrame()
 	frame:RegisterForDrag("LeftButton");
 	frame:SetScript("OnDragStart", frame.StartMoving);
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing);
-	-- Controller: closing this window hands focus back to the game rather than to another window.
-	frame.returnToPlayerControl = true;
 	frame:SetScript("OnShow", function(self)
 		if ns.IsPlacing() then
 			ns.CancelPlacing(true);
 		end
 		Refresh();
-		GamepadFrameShown(self, false);
+		ns.Nav.Open(self);
 	end);
 	frame:SetScript("OnHide", function(self)
-		if popup then
-			popup:Hide();
-		end
-		GamepadFrameHidden(self);
+		ns.ClosePicker();
+		ns.Nav.Close(self);
 	end);
 	frame:Hide();
 	tinsert(UISpecialFrames, "GestureCommandsFrame");
@@ -466,11 +378,12 @@ local function CreateConfigFrame()
 		row:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 			GameTooltip:SetText(self.Text:GetText() or "");
-			GameTooltip:AddLine("Drag onto your crossbar to place this gesture.", 1, 1, 1, true);
+			GameTooltip:AddLine("Click (A) to edit. Drag onto your crossbar to place this gesture.", 1, 1, 1, true);
 			GameTooltip:Show();
 		end);
 		row:SetScript("OnLeave", GameTooltip_Hide);
 		rows[index] = row;
+		table.insert(navControls, row);
 	end
 	frame.TooMany = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
 	frame.TooMany:SetPoint("TOPLEFT", 16, -62 - MAX_ROWS * 30);
@@ -484,8 +397,18 @@ local function CreateConfigFrame()
 		if CanEdit() then
 			selected = ns.AddGesture({});
 			Refresh();
+			-- Straight on to choosing its trigger.
+			ns.Nav.Select(slots.trigger);
 		end
 	end);
+	frame.New = new;
+	table.insert(navControls, new);
+
+	local controllerHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
+	controllerHint:SetPoint("BOTTOMLEFT", 16, 40);
+	controllerHint:SetWidth(230);
+	controllerHint:SetJustifyH("LEFT");
+	controllerHint:SetText("Controller: D-pad moves, A selects, X clears a slot, B closes.");
 
 	-- Editor for the selected gesture
 	local editor = CreateFrame("Frame", nil, frame, "InsetFrameTemplate");
@@ -511,6 +434,9 @@ local function CreateConfigFrame()
 			Refresh();
 		end
 	end);
+	for _, control in ipairs({ editor.Header.IconButton, editor.Header.Edit, editor.Header.Place, slots.trigger, slots.hold, slots.long, editor.Delete }) do
+		table.insert(navControls, control);
+	end
 
 	-- Bottom: on/off, hold lengths, test, status
 	enableCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate");
@@ -524,12 +450,14 @@ local function CreateConfigFrame()
 		end
 		Refresh();
 	end);
+	table.insert(navControls, enableCheck);
 
 	local test = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate");
 	test:SetSize(70, 22);
 	test:SetPoint("LEFT", enableCheck.text, "RIGHT", 16, 0);
 	test:SetText("Test");
 	test:SetScript("OnClick", ns.RunTest);
+	table.insert(navControls, test);
 
 	holdText = CreateTicksControl(frame, 88, function(delta) AdjustTicks("holdTicks", delta); end);
 	hold2Text = CreateTicksControl(frame, 64, function(delta) AdjustTicks("hold2Ticks", delta); end);
@@ -538,6 +466,14 @@ local function CreateConfigFrame()
 	statusText:SetPoint("BOTTOMLEFT", 16, 12);
 	statusText:SetPoint("BOTTOMRIGHT", -16, 12);
 	statusText:SetJustifyH("LEFT");
+
+	-- Controller navigation
+	function frame:GetNavControls()
+		return navControls;
+	end
+	function frame:GetNavDefault()
+		return rows[selected or 0] or new;
+	end
 
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED");
 	frame:RegisterEvent("PLAYER_REGEN_ENABLED");
