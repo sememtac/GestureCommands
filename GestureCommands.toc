@@ -6,8 +6,13 @@
 ## SavedVariablesPerCharacter: GestureCommandsCharDB
 ## X-License: MIT
 ## X-Website: https://github.com/sememtac/GestureCommands
+## IconTexture: Interface\AddOns\GestureCommands\Icon
+## AddonCompartmentFunc: GestureCommands_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: GestureCommands_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: GestureCommands_OnAddonCompartmentLeave
 
 GestureCommands.lua
 Navigation.lua
 Picker.lua
 Config.lua
+MinimapButton.lua

@@ -878,6 +878,10 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		if ns.SetEnabled(msg == "on") then
 			Print(msg == "on" and "on." or "off - crossbar buttons behave normally.");
 		end
+	elseif msg == "minimap" then
+		if ns.ToggleMinimapButton then
+			ns.ToggleMinimapButton();
+		end
 	elseif msg == "padnav own" or msg == "padnav blizzard" then
 		DB().ownNavigation = msg == "padnav own" or nil;
 		if ns.CloseConfig then
@@ -912,6 +916,6 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		end
 		Publish();
 	else
-		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>, padnav own|blizzard.");
+		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>, minimap, padnav own|blizzard.");
 	end
 end;

@@ -17,7 +17,8 @@ icon and cooldown, and every other button works exactly as before.
 
 ## Setup
 
-1. Type `/gestures` (or Options > AddOns > Gesture Commands).
+1. Click the Gesture Commands button on the minimap (or pick it in the minimap's addons menu), or type
+   `/gestures` (or Options > AddOns > Gesture Commands).
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
    - **Tap**: a spell or item (or a macro that shows a spell). A tap casts it.
@@ -65,6 +66,7 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 | `/gestures on` / `off` | Turn it on (the default) or off. `off` returns your buttons to normal immediately |
 | `/gestures test` | Check your gestures, where their Tap actions are on the crossbar, and the hold timing |
 | `/gestures hold 4` / `hold2 9` | Hold / long-hold length in steps of about 0.2 s (defaults 3 and 7) |
+| `/gestures minimap` | Hide or show the minimap button (drag it to move it around the minimap) |
 | `/gestures padnav own` / `blizzard` | Controller navigation of the window: its own, or the game's (the default) |
 | `/gestures debug` | Print where each crossbar press goes (for troubleshooting) |
 
