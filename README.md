@@ -24,7 +24,8 @@ icon and cooldown, and every other button works exactly as before.
    - **Tap**: a spell, an item, or one of your macros that shows a spell or item (`#showtooltip`). A tap casts
      or runs it, and it's what goes on the crossbar.
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. Optional: **Name & icon** (or click the gesture's icon) labels the gesture in the window.
+3. Optional: **Name & icon** (or click the gesture's icon). The icon also shows on the crossbar buttons that
+   hold the gesture's Tap (cooldowns and range / mana colouring stay as usual); the name labels it in the window.
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
    for the other bars, both shoulders + D-pad left / right for another page; nothing is cast by that press).
    A banner shows what you're binding and the time left (60 s); open `/gestures` to cancel. In combat your
@@ -33,8 +34,7 @@ icon and cooldown, and every other button works exactly as before.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
 Gesture Commands doesn't create macros. Any crossbar slot that holds the gesture's Tap - the spell or item,
-or your macro - is the gesture, however it got there; for a custom name and icon on the crossbar, make
-your own macro (`#showtooltip` + `/cast ...`) and use it as the Tap. Versions before 0.10 made a macro for
+or your macro - is the gesture, however it got there, and shows the gesture's icon if you chose one. Versions before 0.10 made a macro for
 each gesture; those are removed automatically (slots that held one get the Tap itself), unless you edited
 them.
 

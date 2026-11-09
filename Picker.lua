@@ -315,7 +315,7 @@ local function CreatePicker()
 	picker.NameBox:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture name");
-		GameTooltip:AddLine("Labels the gesture in this window. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap action's name.", 1, 1, 1, true);
+		GameTooltip:AddLine("Labels the gesture in this window. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap action's name. The icon you pick also shows on the crossbar.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	picker.NameBox:SetScript("OnLeave", GameTooltip_Hide);

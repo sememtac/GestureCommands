@@ -364,6 +364,79 @@ local function WrapCrossbarButtons()
 	end
 end
 
+-------------------------------------------------------------------------------
+-- Gesture icons on the crossbar
+-------------------------------------------------------------------------------
+
+-- A gesture with its own icon shows it on every crossbar button that holds its Tap. Whenever Blizzard sets
+-- such a button's icon we set ours over it, in a hooksecurefunc post-hook so Blizzard's code stays
+-- untainted; the icon's mask, cooldown and usable / range colouring stay Blizzard's. Out-of-combat changes
+-- to gestures are applied with RefreshGestureIcons.
+local gestureKeyOwners = {}; -- "spell:<id>" / "item:<id>" -> gesture index, from the last Publish
+local iconButtons = {}; -- crossbar button icon texture -> its button
+local shownIcons = {}; -- crossbar button -> the gesture icon we put on it
+local settingIcon = false;
+
+local function GetSlotGestureIcon(slot)
+	local kind, id, subType = GetActionInfo(slot);
+	if kind == "macro" then
+		kind = subType;
+	end
+	local index = kind and id and gestureKeyOwners[kind .. ":" .. id];
+	local gesture = index and DB().gestures[index];
+	return gesture and gesture.icon;
+end
+
+local function GetButtonSlot(button)
+	return button.action or button:GetID();
+end
+
+local function SetButtonIcon(texture, icon)
+	settingIcon = true;
+	texture:SetTexture(icon);
+	settingIcon = false;
+end
+
+local function OnButtonIconSet(texture)
+	if settingIcon then
+		return;
+	end
+	local button = iconButtons[texture];
+	local icon = GetSlotGestureIcon(GetButtonSlot(button));
+	shownIcons[button] = icon;
+	if icon then
+		SetButtonIcon(texture, icon);
+	end
+end
+
+local function RefreshGestureIcons()
+	local anyIcon = false;
+	for _, gesture in ipairs(DB().gestures) do
+		anyIcon = anyIcon or gesture.icon ~= nil;
+	end
+	if anyIcon then
+		for _, info in ipairs(GetCrossbarButtons()) do
+			local texture = info.button.icon;
+			if texture and not iconButtons[texture] then
+				iconButtons[texture] = info.button;
+				hooksecurefunc(texture, "SetTexture", OnButtonIconSet);
+			end
+		end
+	end
+	for texture, button in pairs(iconButtons) do
+		local slot = GetButtonSlot(button);
+		local icon = GetSlotGestureIcon(slot);
+		if icon then
+			SetButtonIcon(texture, icon);
+		elseif shownIcons[button] then
+			-- No longer a gesture with an icon: back to the action's own.
+			SetButtonIcon(texture, C_ActionBar.GetActionTexture(slot));
+		end
+		shownIcons[button] = icon;
+	end
+end
+ns.RefreshGestureIcons = RefreshGestureIcons;
+
 -- Totem Commands wraps the same buttons; both acting on one press would cast twice.
 local function IsTotemCommandsActive()
 	return TotemCommandsHeader ~= nil and TotemCommandsHeader:GetAttribute("enabled") == true;
@@ -396,6 +469,7 @@ local function Publish()
 
 	ns.conflicts = {};
 	local owner = {};
+	gestureKeyOwners = owner;
 	for index, gesture in ipairs(DB().gestures) do
 		if gesture.trigger then
 			for key in pairs(GetTriggerKeys(gesture.trigger)) do
@@ -430,6 +504,7 @@ local function Publish()
 	header:SetAttribute("hold2Ticks", GetHold2Ticks());
 	header:SetAttribute("debug", DB().debug == true);
 	header:SetAttribute("enabled", enabled);
+	RefreshGestureIcons();
 	if ns.OnPublished then
 		ns.OnPublished();
 	end
@@ -455,7 +530,8 @@ end
 -- Gestures
 -------------------------------------------------------------------------------
 
--- A gesture's name and icon only label it in the setup window; on the crossbar a gesture is its Tap action.
+-- A gesture's name labels it in the setup window; its icon, if chosen, also shows on the crossbar buttons
+-- that hold its Tap action (RefreshGestureIcons).
 local NAME_LENGTH = 16;
 local QUESTION_MARK_ICON = 134400; -- "automatic": the Tap action's icon
 
@@ -517,6 +593,7 @@ function ns.SetGestureNameIcon(index, name, icon)
 	name = name and strtrim(name) or "";
 	gesture.name = name ~= "" and TruncateUTF8(name, NAME_LENGTH) or nil;
 	gesture.icon = (icon and icon ~= QUESTION_MARK_ICON) and icon or nil;
+	RefreshGestureIcons();
 	if ns.OnPublished then
 		ns.OnPublished();
 	end
