@@ -11,8 +11,8 @@ First release.
 - Gestures are macros for your gamepad: each has a name and icon (chosen like a macro's) and is stored as a
   character macro you can place on the crossbar.
 - Setup window (`/gestures`, or Options > AddOns): choose actions from your spells, items, mounts and
-  macros (or drag them in), hold timing; **Bind** takes a gesture to the game's own bind screen through the
-  Macros window (or drag it onto the crossbar).
+  macros (or drag them in), hold timing; **Bind** puts a gesture on the next crossbar button you press
+  (or drag it onto the crossbar).
 - Full controller support in the setup window, through the game's controller navigation like Blizzard's
   own windows (LT / RT, View, A, B), using only the calls Blizzard provides for addons, so it doesn't
   taint the crossbar, with the game's LT / RT / View jump hints, focus glow and button prompts.

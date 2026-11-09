@@ -60,6 +60,19 @@ header:SetAttribute("_onstate-tick", [[
 -- Runs before Blizzard's OnClick on every wrapped crossbar button. Triggers are looked up by what the slot
 -- shows: "g:spell:<id>" / "g:item:<id>" hold the gesture number (a macro counts as the spell/item it shows).
 local PRE_CLICK = [[
+	-- Place mode: the next crossbar press only says where to put a gesture.
+	if control:GetAttribute("placing") then
+		if down then
+			control:SetAttribute("placing", false);
+			control:SetAttribute("placeSlot", self:GetID());
+			-- Drop any gesture press whose release never arrived (e.g. the window took focus mid-press).
+			pressedSlot = nil;
+			pressedGesture = nil;
+			armed = 0;
+			control:SetAttribute("armed", 0);
+		end
+		return false;
+	end
 	if not control:GetAttribute("enabled") then
 		return;
 	end
@@ -567,6 +580,79 @@ function ns.SetGestureNameIcon(index, name, icon)
 	end
 end
 
+-- Place mode, for controllers: there is no way to drop a cursor action on the crossbar with a gamepad, so
+-- the next crossbar press (caught and swallowed by the secure hook) picks the slot, and the gesture's macro
+-- is put there out of combat. Times out if no crossbar button is pressed.
+local PLACE_TIMEOUT = 15;
+local placing = nil; -- { index = gesture index, token = unique id }
+
+function ns.IsPlacing()
+	return placing ~= nil;
+end
+
+function ns.CancelPlacing(quiet)
+	if not placing or InCombatLockdown() then
+		return;
+	end
+	placing = nil;
+	header:SetAttribute("placing", false);
+	header:SetAttribute("placeSlot", nil);
+	if not quiet then
+		Print("placing cancelled.");
+	end
+end
+
+function ns.StartPlacing(index)
+	if InCombatLockdown() then
+		Print("can't place actions in combat.");
+		return false;
+	end
+	local gesture = DB().gestures[index];
+	if not (gesture and gesture.trigger) then
+		Print("set this gesture's Tap (trigger) first.");
+		return false;
+	end
+	if not SyncMacro(gesture) then
+		return false;
+	end
+	WrapCrossbarButtons();
+	local token = {};
+	placing = { index = index, token = token };
+	header:SetAttribute("placeSlot", nil);
+	header:SetAttribute("placing", true);
+	UIErrorsFrame:AddMessage(("Press the crossbar button for %s"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
+	C_Timer.After(PLACE_TIMEOUT, function()
+		if placing and placing.token == token then
+			ns.CancelPlacing();
+		end
+	end);
+	return true;
+end
+
+-- Called by the feedback poll when the secure hook has reported a slot.
+local function FinishPlacing(slot)
+	local gesture = placing and DB().gestures[placing.index];
+	placing = nil;
+	header:SetAttribute("placeSlot", nil);
+	local macroIndex = gesture and SyncMacro(gesture);
+	if not macroIndex then
+		return;
+	end
+	PickupMacro(macroIndex);
+	(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
+	ClearCursor();
+	if GetActionInfo(slot) == "macro" then
+		UIErrorsFrame:AddMessage(("%s placed"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
+		if C_GamePad and C_GamePad.SetVibration then
+			C_GamePad.SetVibration("Low", RUMBLE_INTENSITY);
+			C_Timer.After(RUMBLE_TIME, function() C_GamePad.StopVibration(); end);
+		end
+	else
+		Print("couldn't place the gesture on that slot.");
+	end
+end
+ns.FinishPlacing = FinishPlacing;
+
 -- Puts the gesture on the cursor - its macro, or the trigger itself if the macro can't be made - so it can
 -- be dropped on a crossbar slot.
 function ns.PickupGesture(index)
@@ -626,6 +712,11 @@ end
 local lastStage, lastDebugSeq = 0, 0;
 local feedback = CreateFrame("Frame");
 feedback:SetScript("OnUpdate", function()
+	local placeSlot = header:GetAttribute("placeSlot");
+	if placeSlot and ns.IsPlacing() and not InCombatLockdown() then
+		ns.FinishPlacing(placeSlot);
+	end
+
 	local debugSeq = header:GetAttribute("debugSeq") or 0;
 	if debugSeq ~= lastDebugSeq then
 		lastDebugSeq = debugSeq;

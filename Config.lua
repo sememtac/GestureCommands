@@ -1,9 +1,9 @@
 -- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
 -- and icon (edited like a macro's) and three slots: Tap (trigger), Hold, Long hold. Click a slot to choose a
 -- spell, item, mount or macro for it, or drag one onto it; right-click clears it. Each gesture is a character
--- macro: Bind takes it to the game's own bind screen (through the Macros window), or drag it onto the
--- crossbar. The window only opens out of combat and closes when combat starts: the secure configuration and
--- the macros can only change out of combat, and the Bind button makes the window protected.
+-- macro: Bind (controller) puts it on the crossbar button pressed next; with a mouse, drag it onto a slot.
+-- Editing is locked in combat because the secure configuration and the gesture macros can only change out
+-- of combat.
 --
 -- Controller: the window joins Blizzard's gamepad UI like its own panels (LT / RT, View, A, B), or uses
 -- our own D-pad navigation with `/gestures padnav own`; see Navigation.lua.
@@ -27,7 +27,7 @@ local navControls = {};
 -------------------------------------------------------------------------------
 
 local function Refresh()
-	if not (frame and frame:IsShown()) or InCombatLockdown() then
+	if not (frame and frame:IsShown()) then
 		return;
 	end
 	local db = ns.DB();
@@ -79,7 +79,9 @@ local function Refresh()
 	hold2Text:SetText(("Long hold: %d ticks (~%.1f s)"):format(ns.GetHold2Ticks(), ns.GetHold2Ticks() * 0.2));
 
 	local status;
-	if ns.IsTotemCommandsActive() then
+	if InCombatLockdown() then
+		status = "|cffff6060Editing is locked in combat.|r";
+	elseif ns.IsTotemCommandsActive() then
 		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
 		status = "|cffffd100Two gestures share a trigger; only the later one is used.|r";
@@ -170,6 +172,17 @@ end
 local function PickupSelected()
 	if selected then
 		ns.PickupGesture(selected);
+	end
+end
+
+-- With the controller (A): close the window and let the next crossbar press choose the slot, because a
+-- controller can't drop a cursor action on the crossbar. (The game's own bind screen can only be opened by
+-- its spellbook, bags and Macros windows; from addon code it would taint the gamepad UI.)
+local function BindWithController()
+	if selected then
+		local index = selected;
+		frame:Hide();
+		ns.StartPlacing(index);
 	end
 end
 
@@ -276,7 +289,7 @@ local function CreateEditorHeader(editor)
 	iconButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture");
-		GameTooltip:AddLine("Click to change the name and icon. Drag onto your crossbar to place it, or use Bind.", 1, 1, 1, true);
+		GameTooltip:AddLine("Click to change the name and icon. Drag onto your crossbar to place it.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	iconButton:SetScript("OnLeave", GameTooltip_Hide);
@@ -293,30 +306,18 @@ local function CreateEditorHeader(editor)
 	header.Edit:SetText("Name & icon");
 	header.Edit:SetScript("OnClick", OpenNameIconPicker);
 
-	-- Bind: the game's own bind screen, through its Macros window, where each gesture is a character macro
-	-- (select it, press X). Opening that window or the bind screen from addon code would taint the gamepad
-	-- UI, so this is a secure button: the game runs "/macro" as its own code. Being secure, it makes the
-	-- window protected, so the window never stays open in combat.
-	header.Bind = CreateFrame("Button", "GestureCommandsBindButton", header, "SecureActionButtonTemplate, UIPanelButtonTemplate");
+	header.Bind = CreateFrame("Button", nil, header, "UIPanelButtonTemplate");
 	header.Bind:SetSize(110, 20);
 	header.Bind:SetPoint("LEFT", header.Edit, "RIGHT", 6, 0);
 	header.Bind:SetText("Bind");
-	header.Bind:RegisterForClicks("AnyUp");
-	header.Bind.navSecureClick = true;
-	header.Bind:SetAttribute("useOnKeyDown", false);
-	header.Bind:SetAttribute("type", "macro");
-	header.Bind:SetAttribute("macrotext", "/macro\n/click MacroFrameTab2");
-	header.Bind:SetScript("PostClick", function()
-		local gesture = selected and ns.DB().gestures[selected];
-		if gesture then
-			UIErrorsFrame:AddMessage(("Select %s and press X (Bind)"):format(ns.GetGestureName(gesture)), 1, 0.82, 0);
-		end
-	end);
+	header.Bind:SetScript("OnClick", PickupSelected);
+	-- A controller's A press (SmartNavigation, or our own navigation) calls this instead of clicking.
+	header.Bind.OnSmartNavClick = BindWithController;
 	header.Bind:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Bind");
-		GameTooltip:AddLine("Opens the Macros window on your Character tab. Select this gesture there and press X (Bind): the game's bind screen asks for the crossbar button.", 1, 1, 1, true);
-		GameTooltip:AddLine("With a mouse you can also drag the gesture's icon onto the crossbar.", 0.6, 0.6, 0.6, true);
+		GameTooltip:AddLine("Controller (A): closes this window - then press the crossbar button you want the gesture on (L1 / R1 for the other bars). Nothing is cast by that press. With another window still open, press View first to get back to the game.", 1, 1, 1, true);
+		GameTooltip:AddLine("Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 0.6, 0.6, 0.6, true);
 		GameTooltip:Show();
 	end);
 	header.Bind:SetScript("OnLeave", GameTooltip_Hide);
@@ -333,6 +334,9 @@ local function CreateConfigFrame()
 	frame:SetScript("OnDragStart", frame.StartMoving);
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing);
 	frame:SetScript("OnShow", function(self)
+		if ns.IsPlacing() then
+			ns.CancelPlacing(true);
+		end
 		Refresh();
 		ns.Nav.Open(self);
 	end);
@@ -489,24 +493,16 @@ local function CreateConfigFrame()
 
 	ns.Nav.SetUpFocusVisuals(frame);
 
-	-- Close while that's still allowed (the Bind button makes the window protected).
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED");
-	frame:SetScript("OnEvent", function(self)
-		self:Hide();
-	end);
+	frame:RegisterEvent("PLAYER_REGEN_ENABLED");
+	frame:SetScript("OnEvent", Refresh);
 end
 
 function ns.ToggleConfig()
-	if frame and frame:IsShown() then
-		frame:Hide();
-	elseif InCombatLockdown() then
-		ns.Print("the window opens out of combat.");
-	else
-		if not frame then
-			CreateConfigFrame();
-		end
-		frame:Show();
+	if not frame then
+		CreateConfigFrame();
 	end
+	frame:SetShown(not frame:IsShown());
 end
 
 function ns.CloseConfig()

@@ -23,9 +23,9 @@ icon and cooldown, and every other button works exactly as before.
    - **Tap (trigger)**: a spell or item (or a macro that shows a spell). A tap casts it.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
-4. **Bind**: opens the game's Macros window on your Character tab, where the gesture is a macro. Select it and
-   press **X (Bind)**: the game's own bind screen asks for the crossbar button. With a mouse you can also drag
-   the gesture from the list onto a crossbar slot.
+4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
+   for the other bars; nothing is cast by that press). With a mouse, Bind (or dragging the gesture from the
+   list) puts it on your cursor to drop on a crossbar slot.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
 Each gesture is stored as one of your **character macros** (with your name and icon, casting the Tap
@@ -39,11 +39,15 @@ between it and other open windows (bags, spellbook...), the **View** button swit
 the windows, the D-pad moves between buttons, **A** selects and **B** goes back / closes; like the game's
 panels, the window shows the LT / RT / View glyphs and a focus glow, and button prompts at the bottom.
 Selecting a box opens a list of your spells, items, mounts and macros, so no mouse is needed; **Clear** in
-that list empties the box. **Bind** goes to the game's Macros window (see Setup) - the binding itself is the
-game's. Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with the Tap
+that list empties the box. **Bind** closes the window and takes the next crossbar button you press (if
+another window is still open, press View first). Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with the Tap
 spell's name, so you only need to type if you want a different one.
 
-The window opens out of combat only and closes when you enter combat (editing is locked in combat anyway).
+The window closes when you enter combat (editing is locked in combat anyway).
+
+The game's own bind screen can't be opened by an addon for a gesture (only its spellbook, bags and Macros
+windows can open it). Each gesture is a character macro, though, so Esc > Macros > Character tab > X (Bind)
+works too.
 
 If the game ever shows "Gesture Commands: Blizzard blocked ..." while you use the window, type
 `/gestures padnav own`: the window then uses its own navigation instead (the D-pad moves a yellow
