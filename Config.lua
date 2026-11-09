@@ -206,6 +206,12 @@ local function OpenNameIconPopup()
 		popup:EnableMouse(true);
 		popup.BorderBox.EditBoxHeaderText:SetText("Gesture name (shown on the macro):");
 		popup.BorderBox.IconSelectorEditBox:SetMaxLetters(16);
+		-- Controller: A on the name box starts typing (keyboard needed); B closes the popup.
+		popup.BorderBox.IconSelectorEditBox.OnSmartNavClick = function(editBox) editBox:SetFocus(); end;
+		popup.SmartNavigationCloseHandler = function(self)
+			self:Hide();
+			return true;
+		end;
 		popup:Hide();
 	end
 	popup.gestureIndex = selected;
@@ -241,8 +247,18 @@ local function OnSlotReceive(slot)
 	ns.SetGestureAction(selected, slot.mode, action);
 end
 
+-- With a mouse: put the gesture's macro on the cursor to drop on a slot. With a controller there's no way to
+-- drop a cursor action on the crossbar, so close the window (focus goes back to the game) and let the next
+-- crossbar press choose the slot.
 local function PlaceSelected()
-	if selected then
+	if not selected then
+		return;
+	end
+	if GetFrameControlsManager() then
+		local index = selected;
+		frame:Hide();
+		ns.StartPlacing(index);
+	else
 		ns.PickupGesture(selected);
 	end
 end
@@ -371,7 +387,7 @@ local function CreateEditorHeader(editor)
 	header.Place:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Place on bar");
-		GameTooltip:AddLine("Puts the gesture's macro on your cursor - drop it on a crossbar slot. The slot keeps the gesture's icon; a tap casts the Tap trigger.", 1, 1, 1, true);
+		GameTooltip:AddLine("Controller: closes this window - then press the crossbar button you want the gesture on. Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	header.Place:SetScript("OnLeave", GameTooltip_Hide);
@@ -387,7 +403,12 @@ local function CreateConfigFrame()
 	frame:RegisterForDrag("LeftButton");
 	frame:SetScript("OnDragStart", frame.StartMoving);
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing);
+	-- Controller: closing this window hands focus back to the game rather than to another window.
+	frame.returnToPlayerControl = true;
 	frame:SetScript("OnShow", function(self)
+		if ns.IsPlacing() then
+			ns.CancelPlacing(true);
+		end
 		Refresh();
 		GamepadFrameShown(self, false);
 	end);

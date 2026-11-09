@@ -31,10 +31,13 @@ holds the Tap spell or item directly also works as the gesture.
 
 ### With a controller
 
-The window works with the gamepad UI: it joins Forever's controller navigation like Blizzard's own windows,
-so you can move between it and other windows and navigate its buttons with the controller. Pick up a
-spell (e.g. from your spellbook), move to a box and press the select button to drop it there; use
-**Place on bar** to put a gesture on your cursor and drop it on a crossbar slot.
+The window works with Forever's controller navigation like Blizzard's own windows: **LT / RT** switch
+between open windows, the D-pad moves between buttons, **A** selects and **B** closes (the View button
+switches between the game and the windows). To fill a box, pick up a spell (e.g. from your spellbook),
+move to the box and press **A**. **Place on bar** closes the window and asks you to press the crossbar
+button you want the gesture on (any bar, with or without L1/R1); nothing is cast by that press.
+Naming a gesture needs a keyboard, since the game has no on-screen keyboard; it starts with the Tap
+spell's name, so you only need to type if you want a different one.
 
 
 ## Commands
