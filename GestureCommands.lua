@@ -365,77 +365,103 @@ local function WrapCrossbarButtons()
 end
 
 -------------------------------------------------------------------------------
--- Gesture icons on the crossbar
+-- Gesture icons and names on the crossbar
 -------------------------------------------------------------------------------
 
--- A gesture with its own icon shows it on every crossbar button that holds its Tap. Whenever Blizzard sets
--- such a button's icon we set ours over it, in a hooksecurefunc post-hook so Blizzard's code stays
--- untainted; the icon's mask, cooldown and usable / range colouring stay Blizzard's. Out-of-combat changes
--- to gestures are applied with RefreshGestureIcons.
+-- A gesture with its own icon or name shows it on every crossbar button that holds its Tap: the icon in the
+-- button's icon, the name in the text line macros use. Whenever Blizzard sets either we set ours over it, in
+-- hooksecurefunc post-hooks so Blizzard's code stays untainted; the icon's mask, cooldown and usable / range
+-- colouring stay Blizzard's. Out-of-combat changes to gestures are applied with RefreshCrossbarLabels.
 local gestureKeyOwners = {}; -- "spell:<id>" / "item:<id>" -> gesture index, from the last Publish
-local iconButtons = {}; -- crossbar button icon texture -> its button
-local shownIcons = {}; -- crossbar button -> the gesture icon we put on it
-local settingIcon = false;
-
-local function GetSlotGestureIcon(slot)
-	local kind, id, subType = GetActionInfo(slot);
-	if kind == "macro" then
-		kind = subType;
-	end
-	local index = kind and id and gestureKeyOwners[kind .. ":" .. id];
-	local gesture = index and DB().gestures[index];
-	return gesture and gesture.icon;
-end
+local regionButtons = {}; -- crossbar button icon texture / name font string -> its button
+local shownIcons, shownNames = {}, {}; -- crossbar button -> the gesture icon / name we put on it
+local settingRegion = false;
 
 local function GetButtonSlot(button)
 	return button.action or button:GetID();
 end
 
-local function SetButtonIcon(texture, icon)
-	settingIcon = true;
-	texture:SetTexture(icon);
-	settingIcon = false;
+local function GetSlotGesture(slot)
+	local kind, id, subType = GetActionInfo(slot);
+	if kind == "macro" then
+		kind = subType;
+	end
+	local index = kind and id and gestureKeyOwners[kind .. ":" .. id];
+	return index and DB().gestures[index];
 end
 
-local function OnButtonIconSet(texture)
-	if settingIcon then
+local function SetRegion(region, method, value)
+	settingRegion = true;
+	region[method](region, value);
+	settingRegion = false;
+end
+
+local function OnIconSet(texture)
+	if settingRegion then
 		return;
 	end
-	local button = iconButtons[texture];
-	local icon = GetSlotGestureIcon(GetButtonSlot(button));
-	shownIcons[button] = icon;
-	if icon then
-		SetButtonIcon(texture, icon);
+	local button = regionButtons[texture];
+	local gesture = GetSlotGesture(GetButtonSlot(button));
+	shownIcons[button] = gesture and gesture.icon;
+	if shownIcons[button] then
+		SetRegion(texture, "SetTexture", shownIcons[button]);
 	end
 end
 
-local function RefreshGestureIcons()
-	local anyIcon = false;
-	for _, gesture in ipairs(DB().gestures) do
-		anyIcon = anyIcon or gesture.icon ~= nil;
+local function OnNameSet(fontString)
+	if settingRegion then
+		return;
 	end
-	if anyIcon then
+	local button = regionButtons[fontString];
+	local gesture = GetSlotGesture(GetButtonSlot(button));
+	shownNames[button] = gesture and gesture.name;
+	if shownNames[button] then
+		SetRegion(fontString, "SetText", shownNames[button]);
+	end
+end
+
+local function RefreshCrossbarLabels()
+	local any = false;
+	for _, gesture in ipairs(DB().gestures) do
+		any = any or gesture.icon ~= nil or gesture.name ~= nil;
+	end
+	if any then
 		for _, info in ipairs(GetCrossbarButtons()) do
-			local texture = info.button.icon;
-			if texture and not iconButtons[texture] then
-				iconButtons[texture] = info.button;
-				hooksecurefunc(texture, "SetTexture", OnButtonIconSet);
+			local button = info.button;
+			if button.icon and not regionButtons[button.icon] then
+				regionButtons[button.icon] = button;
+				hooksecurefunc(button.icon, "SetTexture", OnIconSet);
+			end
+			if button.Name and not regionButtons[button.Name] then
+				regionButtons[button.Name] = button;
+				hooksecurefunc(button.Name, "SetText", OnNameSet);
 			end
 		end
 	end
-	for texture, button in pairs(iconButtons) do
+	for region, button in pairs(regionButtons) do
 		local slot = GetButtonSlot(button);
-		local icon = GetSlotGestureIcon(slot);
-		if icon then
-			SetButtonIcon(texture, icon);
-		elseif shownIcons[button] then
-			-- No longer a gesture with an icon: back to the action's own.
-			SetButtonIcon(texture, C_ActionBar.GetActionTexture(slot));
+		local gesture = GetSlotGesture(slot);
+		if region == button.icon then
+			local icon = gesture and gesture.icon;
+			if icon then
+				SetRegion(region, "SetTexture", icon);
+			elseif shownIcons[button] then
+				-- No longer a gesture with an icon: back to the action's own.
+				SetRegion(region, "SetTexture", C_ActionBar.GetActionTexture(slot));
+			end
+			shownIcons[button] = icon;
+		else
+			local name = gesture and gesture.name;
+			if name then
+				SetRegion(region, "SetText", name);
+			elseif shownNames[button] then
+				SetRegion(region, "SetText", C_ActionBar.UsesActionText(slot) and C_ActionBar.GetActionText(slot) or "");
+			end
+			shownNames[button] = name;
 		end
-		shownIcons[button] = icon;
 	end
 end
-ns.RefreshGestureIcons = RefreshGestureIcons;
+ns.RefreshCrossbarLabels = RefreshCrossbarLabels;
 
 -- Totem Commands wraps the same buttons; both acting on one press would cast twice.
 local function IsTotemCommandsActive()
@@ -504,7 +530,7 @@ local function Publish()
 	header:SetAttribute("hold2Ticks", GetHold2Ticks());
 	header:SetAttribute("debug", DB().debug == true);
 	header:SetAttribute("enabled", enabled);
-	RefreshGestureIcons();
+	RefreshCrossbarLabels();
 	if ns.OnPublished then
 		ns.OnPublished();
 	end
@@ -530,8 +556,8 @@ end
 -- Gestures
 -------------------------------------------------------------------------------
 
--- A gesture's name labels it in the setup window; its icon, if chosen, also shows on the crossbar buttons
--- that hold its Tap action (RefreshGestureIcons).
+-- A gesture's name and icon, if chosen, label it in the setup window and on the crossbar buttons that hold
+-- its Tap action (RefreshCrossbarLabels).
 local NAME_LENGTH = 16;
 local QUESTION_MARK_ICON = 134400; -- "automatic": the Tap action's icon
 
@@ -593,7 +619,7 @@ function ns.SetGestureNameIcon(index, name, icon)
 	name = name and strtrim(name) or "";
 	gesture.name = name ~= "" and TruncateUTF8(name, NAME_LENGTH) or nil;
 	gesture.icon = (icon and icon ~= QUESTION_MARK_ICON) and icon or nil;
-	RefreshGestureIcons();
+	RefreshCrossbarLabels();
 	if ns.OnPublished then
 		ns.OnPublished();
 	end

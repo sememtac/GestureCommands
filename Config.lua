@@ -1,5 +1,5 @@
 -- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
--- (a label for this window), icon (also shown on the crossbar) and three slots: Tap, Hold, Long hold. Click a slot to choose a spell,
+-- and icon (also shown on the crossbar) and three slots: Tap, Hold, Long hold. Click a slot to choose a spell,
 -- item, mount or macro for it, or drag one onto it; right-click clears it. On the crossbar a gesture is its
 -- Tap action: Bind (controller) puts that on the button pressed next; with a mouse, drag it to a slot.
 -- Editing is locked in combat because the secure configuration can only change out of combat.
@@ -550,6 +550,13 @@ function ns.ToggleConfig()
 		CreateConfigFrame();
 	end
 	frame:SetShown(not frame:IsShown());
+end
+
+-- Key binding (Bindings.xml): Options > Keybindings > AddOns.
+BINDING_HEADER_GESTURECOMMANDS = "Gesture Commands";
+BINDING_NAME_GESTURECOMMANDS_TOGGLE = "Open / close the setup window";
+function GestureCommands_ToggleConfig()
+	ns.ToggleConfig();
 end
 
 function ns.CloseConfig()

@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="GESTURECOMMANDS_TOGGLE" header="GESTURECOMMANDS" category="ADDONS">
+		GestureCommands_ToggleConfig();
+	</Binding>
+</Bindings>

@@ -17,15 +17,17 @@ icon and cooldown, and every other button works exactly as before.
 
 ## Setup
 
-1. Click the Gesture Commands button on the minimap (or pick it in the minimap's addons menu), or type
-   `/gestures` (or Options > AddOns > Gesture Commands).
+1. Click the Gesture Commands button on the minimap (or pick it in the minimap's addons menu), type
+   `/gestures`, use Options > AddOns > Gesture Commands, or set a key for it in Options > Keybindings >
+   AddOns.
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
    - **Tap**: a spell, an item, or one of your macros that shows a spell or item (`#showtooltip`). A tap casts
      or runs it, and it's what goes on the crossbar.
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. Optional: **Name & icon** (or click the gesture's icon). The icon also shows on the crossbar buttons that
-   hold the gesture's Tap (cooldowns and range / mana colouring stay as usual); the name labels it in the window.
+3. Optional: **Name & icon** (or click the gesture's icon). Both show on the crossbar buttons that hold the
+   gesture's Tap - the name as the button's text line, like a macro's (cooldowns and range / mana colouring
+   stay as usual).
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
    for the other bars, both shoulders + D-pad left / right for another page; nothing is cast by that press).
    A banner shows what you're binding and the time left (60 s); open `/gestures` to cancel. In combat your
