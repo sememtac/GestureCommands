@@ -37,34 +37,59 @@ local function GetFrameControlsManager()
 	return GamepadMode and GamepadMode.FrameControlsManager;
 end
 
+-- Whether the focus manager lists the panel (nil if we can't tell). Needed because its wrapped functions
+-- don't raise an error when they refuse a call (in combat): they return nothing, and the popup ones return
+-- nothing even when they do take it.
+local function IsListed(manager, panel)
+	local shownFrames = manager.shownFrames;
+	if type(shownFrames) ~= "table" then
+		return nil;
+	end
+	for _, frame in ipairs(shownFrames) do
+		if frame == panel then
+			return true;
+		end
+	end
+	return false;
+end
+
 local function Register(panel)
 	local manager = GetFrameControlsManager();
 	if registered[panel] or not manager or InCombatLockdown() then
 		return;
 	end
 	local isPopup = blizzardPanels[panel];
-	local ok;
+	local ok, result;
 	if isPopup then
-		ok = pcall(manager.HandlePopupShown, manager, panel);
+		ok, result = pcall(manager.HandlePopupShown, manager, panel);
+		result = ok or nil;
 	else
-		ok = pcall(manager.FrameShown, manager, panel, false, true);
+		-- true if added, false if it already was; nothing if refused.
+		ok, result = pcall(manager.FrameShown, manager, panel, false, true);
 	end
-	if ok then
+	local listed = IsListed(manager, panel);
+	if listed or (listed == nil and ok and result ~= nil) then
 		registered[panel] = isPopup and "popup" or true;
 	end
 end
 
+-- A refused call leaves the panel registered, so it's retried after combat.
 local function Unregister(panel)
 	local manager = GetFrameControlsManager();
 	if not registered[panel] or not manager or InCombatLockdown() then
 		return;
 	end
+	local ok, result;
 	if registered[panel] == "popup" then
-		pcall(manager.HandlePopupHide, manager, panel);
+		ok, result = pcall(manager.HandlePopupHide, manager, panel);
+		result = ok or nil;
 	else
-		pcall(manager.FrameHidden, manager, panel);
+		ok, result = pcall(manager.FrameHidden, manager, panel);
 	end
-	registered[panel] = nil;
+	local listed = IsListed(manager, panel);
+	if listed == false or (listed == nil and ok and result ~= nil) then
+		registered[panel] = nil;
+	end
 end
 
 -- SmartNavigation collects a panel's buttons when it opens; rescan after showing or hiding some.
