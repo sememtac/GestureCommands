@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: Gesture Commands
+## Notes: Tap, hold and long-hold gestures for anything on the gamepad crossbar.
+## Author: Catmemes
+## Version: @project-version@
+## SavedVariablesPerCharacter: GestureCommandsCharDB
+## X-License: MIT
+## X-Website: https://github.com/sememtac/GestureCommands
+
+GestureCommands.lua
+Config.lua
