@@ -23,7 +23,7 @@ icon and cooldown, and every other button works exactly as before.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. Drag the gesture from the list onto your crossbar. That slot is now a gesture button (a slot that
    already has the trigger spell or item works too).
-4. Tick **Enabled**, then **Test** to check your setup.
+4. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
 ### Custom tap actions
 
@@ -35,7 +35,7 @@ tap runs the macro. So for a dedicated gesture button, put a macro on your cross
 | Command | What it does |
 |---|---|
 | `/gestures` | Open the setup window |
-| `/gestures on` / `off` | Turn it on or off. `off` returns your buttons to normal immediately |
+| `/gestures on` / `off` | Turn it on (the default) or off. `off` returns your buttons to normal immediately |
 | `/gestures test` | Check your gestures, where their triggers are, and the hold timing |
 | `/gestures hold 4` / `hold2 9` | Hold / long-hold length in steps of about 0.2 s (defaults 3 and 7) |
 | `/gestures debug` | Print where each crossbar press goes (for troubleshooting) |

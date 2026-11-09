@@ -54,7 +54,7 @@ local function Refresh()
 	frame.Editor.Empty:SetShown(gesture == nil);
 	frame.Editor.Delete:SetEnabled(gesture ~= nil);
 
-	enableCheck:SetChecked(db.enabled == true);
+	enableCheck:SetChecked(db.enabled ~= false);
 	holdText:SetText(("Hold: %d ticks (~%.1f s)"):format(ns.GetHoldTicks(), ns.GetHoldTicks() * 0.2));
 	hold2Text:SetText(("Long hold: %d ticks (~%.1f s)"):format(ns.GetHold2Ticks(), ns.GetHold2Ticks() * 0.2));
 
@@ -65,7 +65,7 @@ local function Refresh()
 		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
 		status = "|cffffd100Two gestures share a trigger; only the later one is used.|r";
-	elseif not db.enabled then
+	elseif db.enabled == false then
 		status = "Off - tick Enabled to use your gestures.";
 	else
 		status = "|cff33ff99On.|r Press /gestures test to check your setup.";

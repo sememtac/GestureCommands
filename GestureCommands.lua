@@ -394,8 +394,9 @@ local function Publish()
 		end
 	end
 
-	local enabled = DB().enabled == true and not IsTotemCommandsActive();
-	if enabled then
+	-- On unless the player turned it off; buttons are only hooked once there is a gesture to act on.
+	local enabled = DB().enabled ~= false and not IsTotemCommandsActive();
+	if enabled and #DB().gestures > 0 then
 		WrapCrossbarButtons();
 	end
 	header:SetAttribute("holdTicks", GetHoldTicks());
