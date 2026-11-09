@@ -17,8 +17,8 @@ icon and cooldown, and every other button works exactly as before.
 
 ## Setup
 
-1. Open the window: with a controller, from the game's main menu dial (menu button, LB / RB to its last
-   page, choose **Gesture Commands**, then press B - the window opens as the dial closes). Or click the
+1. Open the window: with a controller, from the game's main menu dial (menu button, RB to its last page,
+   point the right stick at **Gesture Commands** and press **A** - again to close it, like Bags). Or click the
    Gesture Commands button on the minimap (or pick it in the minimap's addons menu), type `/gestures`, use
    Options > AddOns > Gesture Commands, or set a key for it in Options > Keybindings > AddOns.
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
