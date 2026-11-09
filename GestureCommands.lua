@@ -801,7 +801,18 @@ frame:RegisterEvent("PLAYER_REGEN_ENABLED");
 frame:RegisterEvent("SPELLS_CHANGED");
 frame:RegisterEvent("UPDATE_SHAPESHIFT_FORMS");
 frame:RegisterEvent("ACTIONBAR_SLOT_CHANGED");
+-- The "blocked from an action" dialog doesn't say which function; report it so problems can be traced.
+frame:RegisterEvent("ADDON_ACTION_FORBIDDEN");
+frame:RegisterEvent("ADDON_ACTION_BLOCKED");
 frame:SetScript("OnEvent", function(self, event, ...)
+	if event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
+		local addonName, functionName = ...;
+		if addonName == ADDON_NAME then
+			Print(("Blizzard blocked %s (%s) - please report this."):format(tostring(functionName),
+				event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked in combat"));
+		end
+		return;
+	end
 	if event == "ADDON_LOADED" then
 		if ... == ADDON_NAME then
 			GestureCommandsCharDB = GestureCommandsCharDB or {};

@@ -201,13 +201,14 @@ local function OpenNameIconPopup()
 		popup:SetScript("OnHide", popup.OnHide);
 		popup:SetScript("OnEvent", nil);
 		popup:SetPoint("TOPLEFT", frame, "TOPRIGHT", 0, 0);
-		popup:SetFrameStrata("DIALOG");
+		-- HIGH like Blizzard's macro popup: the template pins its icon grid to HIGH, so a higher strata would
+		-- put the popup's dark background over the icons.
+		popup:SetFrameStrata("HIGH");
 		popup:SetToplevel(true);
 		popup:EnableMouse(true);
 		popup.BorderBox.EditBoxHeaderText:SetText("Gesture name (shown on the macro):");
 		popup.BorderBox.IconSelectorEditBox:SetMaxLetters(16);
-		-- Controller: A on the name box starts typing (keyboard needed); B closes the popup.
-		popup.BorderBox.IconSelectorEditBox.OnSmartNavClick = function(editBox) editBox:SetFocus(); end;
+		-- Controller: B closes the popup.
 		popup.SmartNavigationCloseHandler = function(self)
 			self:Hide();
 			return true;
