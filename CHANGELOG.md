@@ -8,8 +8,9 @@ First release.
   item on a crossbar slot (or a macro that shows one); a tap does what the slot normally does, a hold and
   a longer hold cast what you assign.
 - Hold actions can be spells, items, toys, mounts or macros.
-- Gestures are macros for your gamepad: each has a name and icon (chosen like a macro's) and is stored as a
-  character macro you can place on the crossbar.
+- The Tap can be a spell, an item, or one of your macros that shows one; the gesture is whatever crossbar
+  slot holds it. Gesture Commands creates no macros (and removes the ones versions before 0.10 made).
+  Optional name and icon to label gestures in the window.
 - Setup window (minimap button, the minimap's addons menu, `/gestures`, or Options > AddOns): choose actions from your spells, items, mounts and
   macros (or drag them in), hold timing; **Bind** puts a gesture on the next crossbar button you press
   (or drag it onto the crossbar).

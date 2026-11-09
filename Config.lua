@@ -1,9 +1,8 @@
 -- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
--- and icon (edited like a macro's) and three slots: Tap (trigger), Hold, Long hold. Click a slot to choose a
--- spell, item, mount or macro for it, or drag one onto it; right-click clears it. Each gesture is a character
--- macro: Bind (controller) puts it on the crossbar button pressed next; with a mouse, drag it onto a slot.
--- Editing is locked in combat because the secure configuration and the gesture macros can only change out
--- of combat.
+-- and icon (labels for this window) and three slots: Tap, Hold, Long hold. Click a slot to choose a spell,
+-- item, mount or macro for it, or drag one onto it; right-click clears it. On the crossbar a gesture is its
+-- Tap action: Bind (controller) puts that on the button pressed next; with a mouse, drag it to a slot.
+-- Editing is locked in combat because the secure configuration can only change out of combat.
 --
 -- Controller: the window joins Blizzard's gamepad UI like its own panels (LT / RT, View, A, B), or uses
 -- our own D-pad navigation with `/gestures padnav own`; see Navigation.lua.
@@ -13,7 +12,7 @@ local _, ns = ...;
 local MAX_ROWS = 10;
 local SLOT_SIZE = 40;
 local SLOT_HINTS = {
-	trigger = "The button you press: a spell or item (or a macro that shows one). A tap does this.",
+	trigger = "What a tap does, and what you put on the crossbar: a spell, an item, or one of your macros that shows a spell or item (#showtooltip).",
 	hold = "Cast when you hold the button (about 0.5 s): a spell, item, toy, mount or macro.",
 	long = "Cast when you keep holding the button (about 1.4 s): a spell, item, toy, mount or macro.",
 };
@@ -129,7 +128,7 @@ local function AssignAction(mode, action)
 	if action and mode == "trigger" then
 		local trigger = ns.MakeTrigger(action);
 		if not trigger then
-			ns.Print("Tap must be a spell or item, or a macro that shows one (#showtooltip).");
+			ns.Print("Tap must be a spell, an item, or a macro that shows one (#showtooltip).");
 			return false;
 		end
 		action = trigger;
@@ -409,7 +408,7 @@ local function CreateConfigFrame()
 	intro:SetPoint("TOPLEFT", 14, -30);
 	intro:SetPoint("TOPRIGHT", -14, -30);
 	intro:SetJustifyH("LEFT");
-	intro:SetText("A gesture is a macro for your gamepad: choose what a Tap, a Hold and a Long hold of its button do, give it a name and an icon, then bind it to your crossbar.");
+	intro:SetText("A gesture gives one crossbar button three actions: choose what a Tap, a Hold and a Long hold do - spells, items, mounts or your own macros - then bind it to your crossbar.");
 
 	-- Gesture list
 	rows = {};

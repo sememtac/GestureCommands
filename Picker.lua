@@ -26,7 +26,7 @@ local SOURCES = {
 	},
 };
 local ACTION_HINTS = {
-	trigger = "A tap does this. Pick a spell or a usable item (or a macro that shows one).",
+	trigger = "A tap does this. Pick a spell, a usable item, or one of your macros that shows a spell or item.",
 	hold = "Cast when you hold the button.",
 	long = "Cast when you keep holding the button.",
 };
@@ -112,17 +112,12 @@ local function GetMountEntries()
 	return entries;
 end
 
--- Account and character macros, except the gestures' own.
+-- Account and character macros.
 local function GetMacroEntries()
-	local entries, own = {}, {};
-	for _, gesture in ipairs(ns.DB().gestures) do
-		if gesture.macro then
-			own[gesture.macro] = true;
-		end
-	end
+	local entries = {};
 	local function Add(index)
 		local name, icon = GetMacroInfo(index);
-		if name and not own[name] then
+		if name then
 			table.insert(entries, { icon = icon, name = name, action = { kind = "macro", name = name } });
 		end
 	end
@@ -320,7 +315,7 @@ local function CreatePicker()
 	picker.NameBox:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture name");
-		GameTooltip:AddLine("Shown on the macro. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap action's name.", 1, 1, 1, true);
+		GameTooltip:AddLine("Labels the gesture in this window. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap action's name.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	picker.NameBox:SetScript("OnLeave", GameTooltip_Hide);

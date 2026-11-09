@@ -2,8 +2,8 @@
 
 Tap, hold and long-hold gestures for anything on your gamepad crossbar in **World of Warcraft: Forever**.
 
-A gesture is like a macro for your gamepad: it has a **name and icon** (edited just like a macro's), a **Tap**
-action, and **Hold** / **Long hold** actions. Place it on your crossbar, and when you press that button:
+A gesture gives one crossbar button three actions: a **Tap**, a **Hold** and a **Long hold**. Bind it to a
+crossbar button, and when you press that button:
 
 | You do | You feel / see | On release |
 |---|---|---|
@@ -21,19 +21,22 @@ icon and cooldown, and every other button works exactly as before.
    `/gestures` (or Options > AddOns > Gesture Commands).
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
-   - **Tap**: a spell or item (or a macro that shows a spell). A tap casts it.
+   - **Tap**: a spell, an item, or one of your macros that shows a spell or item (`#showtooltip`). A tap casts
+     or runs it, and it's what goes on the crossbar.
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
+3. Optional: **Name & icon** (or click the gesture's icon) labels the gesture in the window.
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
    for the other bars, both shoulders + D-pad left / right for another page; nothing is cast by that press).
    A banner shows what you're binding and the time left (60 s); open `/gestures` to cancel. In combat your
-   buttons work normally and the bind waits for a press after the fight. With a mouse, Bind (or dragging the gesture from the
-   list) puts it on your cursor to drop on a crossbar slot.
+   buttons work normally and the bind waits for a press after the fight. With a mouse, Bind (or dragging the
+   gesture from the list) puts its Tap on your cursor to drop on a crossbar slot.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
-Each gesture is stored as one of your **character macros** (with your name and icon, casting the Tap
-action), so it shows up in the Macros window too. Deleting the gesture deletes its macro. A slot that
-holds the Tap spell or item directly also works as the gesture.
+Gesture Commands doesn't create macros. Any crossbar slot that holds the gesture's Tap - the spell or item,
+or your macro - is the gesture, however it got there; for a custom name and icon on the crossbar, make
+your own macro (`#showtooltip` + `/cast ...`) and use it as the Tap. Versions before 0.10 made a macro for
+each gesture; those are removed automatically (slots that held one get the Tap itself), unless you edited
+them.
 
 ### With a controller
 
@@ -48,9 +51,8 @@ spell's name, so you only need to type if you want a different one.
 
 The window closes when you enter combat (editing is locked in combat anyway).
 
-The game's own bind screen can't be opened by an addon for a gesture (only its spellbook, bags and Macros
-windows can open it). Each gesture is a character macro, though, so Esc > Macros > Character tab > X (Bind)
-works too.
+The game's own bind screen works too: bind the Tap spell from the spellbook, the item from your bags, or
+your macro from the Macros window (X).
 
 If the game ever shows "Gesture Commands: Blizzard blocked ..." while you use the window, type
 `/gestures padnav own`: the window then uses its own navigation instead (the D-pad moves a yellow
@@ -79,7 +81,6 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.
 - Gestures can only be edited out of combat; using them works in combat.
-- Each gesture uses one character macro slot (30 per character).
 - If you use **Totem Commands**, turn it off (`/totemcommands off`): both work on the same buttons.
 
 ## How it works
