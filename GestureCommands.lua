@@ -858,6 +858,13 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		if ns.SetEnabled(msg == "on") then
 			Print(msg == "on" and "on." or "off - crossbar buttons behave normally.");
 		end
+	elseif msg == "padnav own" or msg == "padnav blizzard" then
+		DB().ownNavigation = msg == "padnav own" or nil;
+		if ns.CloseConfig then
+			ns.CloseConfig();
+		end
+		Print(DB().ownNavigation and "the window now uses its own controller navigation (D-pad, A, B, X; LT / RT don't reach it)."
+			or "the window now uses the game's controller navigation (LT / RT, View, A, B).");
 	elseif msg == "debug" or holdArg or hold2Arg then
 		if InCombatLockdown() then
 			Print("can't change this in combat.");
@@ -885,6 +892,6 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		end
 		Publish();
 	else
-		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>.");
+		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>, padnav own|blizzard.");
 	end
 end;

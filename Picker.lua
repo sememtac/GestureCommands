@@ -1,7 +1,7 @@
 -- Gesture Commands: the picker window, a paged grid of icons used two ways: choosing a gesture's name and
 -- icon (like the macro icon popup), and choosing the spell, item, mount or macro for one of a gesture's
--- slots without dragging (a controller can't put anything on the cursor). Plain buttons only, so the D-pad
--- reaches everything through ns.Nav.
+-- slots without dragging (a controller can't put anything on the cursor). Plain buttons only, so the
+-- controller reaches everything; it opens as a popup of the setup window (see Navigation.lua).
 
 local _, ns = ...;
 
@@ -223,7 +223,7 @@ local function ShowPage()
 	picker.Next:SetEnabled(state.page < numPages);
 	picker.Last:SetEnabled(state.page < numPages);
 	picker.Empty:SetShown(#state.entries == 0);
-	ns.Nav.Refresh();
+	ns.Nav.Refresh(picker);
 end
 
 local function TurnPage(delta)
@@ -324,6 +324,10 @@ local function CreatePicker()
 		GameTooltip:Show();
 	end);
 	picker.NameBox:SetScript("OnLeave", GameTooltip_Hide);
+	-- Controller A: start typing (there's no on-screen keyboard; a keyboard types).
+	function picker.NameBox:OnSmartNavClick()
+		self:SetFocus();
+	end
 	picker.Preview = picker:CreateTexture(nil, "ARTWORK");
 	picker.Preview:SetSize(32, 32);
 	picker.Preview:SetPoint("TOPRIGHT", -18, -30);
@@ -436,9 +440,19 @@ local function CreatePicker()
 		end
 		return self.cells[1];
 	end
+	-- Controller B: stop typing, else close. Without this, Blizzard's gamepad UI would press the close button,
+	-- running its panel manager from our frame.
+	function picker:SmartNavigationCloseHandler()
+		if self.NameBox:HasFocus() then
+			self.NameBox:ClearFocus();
+		else
+			self:Hide();
+		end
+		return true;
+	end
 	picker:SetScript("OnShow", function(self)
 		self.navCurrent = nil;
-		ns.Nav.Open(self);
+		ns.Nav.Open(self, true);
 	end);
 	picker:SetScript("OnHide", function(self)
 		self.NameBox:ClearFocus();

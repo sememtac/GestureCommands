@@ -12,7 +12,7 @@ First release.
   character macro you can place on the crossbar.
 - Setup window (`/gestures`, or Options > AddOns): choose actions from your spells, items, mounts and
   macros (or drag them in), Place on bar / drag gestures out, hold timing.
-- Full controller support in the setup window with its own D-pad navigation (A selects, X clears, B goes
-  back). It stays out of Blizzard's controller navigation, which taints Blizzard's crossbar code when an
-  addon window joins it.
-- `/gestures on|off|test|debug|hold <n>|hold2 <n>`.
+- Full controller support in the setup window, through the game's controller navigation like Blizzard's
+  own windows (LT / RT, View, A, B), using only the calls Blizzard provides for addons, so it doesn't
+  taint the crossbar. `/gestures padnav own` switches to the window's own D-pad navigation instead.
+- `/gestures on|off|test|debug|hold <n>|hold2 <n>|padnav own|blizzard`.

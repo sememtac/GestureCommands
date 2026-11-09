@@ -32,17 +32,21 @@ holds the Tap spell or item directly also works as the gesture.
 
 ### With a controller
 
-While the window is open, the **D-pad** moves a yellow highlight between its buttons, **A** selects,
-**X** clears a box and **B** goes back / closes. Selecting a box opens a picker with your spells, items,
-mounts and macros, so no mouse is needed. **Place on bar** closes the window and asks you to press the
-crossbar button you want the gesture on (any bar, with or without L1/R1); nothing is cast by that press.
-Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with the Tap spell's
-name, so you only need to type if you want a different one.
+The window works with the game's controller navigation like Blizzard's own windows: **LT / RT** switch
+between it and other open windows (bags, spellbook...), the **View** button switches between the game and
+the windows, the D-pad moves between buttons, **A** selects and **B** goes back / closes. Selecting a box
+opens a list of your spells, items, mounts and macros, so no mouse is needed; **Clear** in that list
+empties the box. **Place on bar** closes the window and asks you to press the crossbar button you want the
+gesture on (any bar, with or without L1/R1; if another window is still open, press View first); nothing is
+cast by that press. Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with
+the Tap spell's name, so you only need to type if you want a different one.
 
-The window has its own controller navigation rather than joining Blizzard's (an addon window in
-Blizzard's controller navigation makes the game block Blizzard's own crossbar code). So **LT / RT**
-don't switch to it, and while it's open it has the D-pad and A / B / X to itself - close it to get
-them back. It gives them back by itself the moment you enter combat.
+The windows close when you enter combat (editing is locked in combat anyway).
+
+If the game ever shows "Gesture Commands: Blizzard blocked ..." while you use the window, type
+`/gestures padnav own`: the window then uses its own navigation instead (the D-pad moves a yellow
+highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and please report the message.
+`/gestures padnav blizzard` switches back.
 
 
 ## Commands
@@ -53,6 +57,7 @@ them back. It gives them back by itself the moment you enter combat.
 | `/gestures on` / `off` | Turn it on (the default) or off. `off` returns your buttons to normal immediately |
 | `/gestures test` | Check your gestures, where their triggers are, and the hold timing |
 | `/gestures hold 4` / `hold2 9` | Hold / long-hold length in steps of about 0.2 s (defaults 3 and 7) |
+| `/gestures padnav own` / `blizzard` | Controller navigation of the window: its own, or the game's (the default) |
 | `/gestures debug` | Print where each crossbar press goes (for troubleshooting) |
 
 ## Good to know

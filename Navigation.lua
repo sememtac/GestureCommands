@@ -1,19 +1,82 @@
--- Gesture Commands: controller navigation for our own windows.
+-- Gesture Commands: controller navigation for our windows. Open a window's panel with ns.Nav.Open(panel,
+-- isPopup) from OnShow and ns.Nav.Close(panel) from OnHide.
 --
--- Blizzard's gamepad UI (SmartNavigation and its frame focus manager) can't take an addon window without
--- tainting its shared state, after which Blizzard blocks its own crossbar and interact code. So our windows
--- don't join it: while one is open, out of combat, our own priority override bindings take the D-pad and
--- the A, B and X buttons, and a highlight moves between the window's controls. A secure state driver drops
--- the bindings the moment combat starts, so the crossbar always has its D-pad in a fight.
+-- By default (game in controller mode) the windows join Blizzard's gamepad UI like its own panels: LT / RT
+-- and the View button reach them, SmartNavigation moves its cursor over their buttons, A clicks and B
+-- closes. This only goes through the functions Blizzard wraps for outside callers (FrameShown, FrameHidden,
+-- HandlePopupShown/Hide, RefreshButtonGroups), only out of combat, and our frames never set the fields its
+-- focus manager reads directly (returnToPlayerControl and the like): any of that taints Blizzard's gamepad
+-- state, after which it blocks its own crossbar code. The windows close when combat starts, while Blizzard
+-- still takes the change, so its focus list never keeps a hidden window.
 --
--- A panel is a frame with GetNavControls() (its buttons, check buttons and edit boxes) and optionally
--- GetNavDefault() and OnNavBack(); open it with ns.Nav.Open(panel) from OnShow and ns.Nav.Close(panel) from
--- OnHide.
+-- `/gestures padnav own` switches to our own navigation instead: while a window is open, out of combat, our
+-- priority override bindings take the D-pad and A, B and X, and a highlight moves between the controls the
+-- panel lists in GetNavControls() (GetNavDefault() picks the first). A secure state driver drops the
+-- bindings when combat starts. Both honour a control's OnSmartNavClick and a panel's
+-- SmartNavigationCloseHandler.
 
 local _, ns = ...;
 
 local Nav = {};
 ns.Nav = Nav;
+
+local function UsesGamepadUI()
+	return C_InputInterfaceStyle ~= nil and C_InputInterfaceStyle.GetCurrentStyle() == Enum.InputDeviceInterfaceType.Gamepad;
+end
+
+local panelModes = {}; -- open panel -> "blizzard" | "own"
+
+-------------------------------------------------------------------------------
+-- Blizzard's gamepad UI
+-------------------------------------------------------------------------------
+
+local registered = {}; -- panel -> true (frame) or "popup", while Blizzard's focus manager has it
+local blizzardPanels = {}; -- open panel -> isPopup
+
+local function GetFrameControlsManager()
+	return GamepadMode and GamepadMode.FrameControlsManager;
+end
+
+local function Register(panel)
+	local manager = GetFrameControlsManager();
+	if registered[panel] or not manager or InCombatLockdown() then
+		return;
+	end
+	local isPopup = blizzardPanels[panel];
+	local ok;
+	if isPopup then
+		ok = pcall(manager.HandlePopupShown, manager, panel);
+	else
+		ok = pcall(manager.FrameShown, manager, panel, false, true);
+	end
+	if ok then
+		registered[panel] = isPopup and "popup" or true;
+	end
+end
+
+local function Unregister(panel)
+	local manager = GetFrameControlsManager();
+	if not registered[panel] or not manager or InCombatLockdown() then
+		return;
+	end
+	if registered[panel] == "popup" then
+		pcall(manager.HandlePopupHide, manager, panel);
+	else
+		pcall(manager.FrameHidden, manager, panel);
+	end
+	registered[panel] = nil;
+end
+
+-- SmartNavigation collects a panel's buttons when it opens; rescan after showing or hiding some.
+local function RefreshButtonGroups(panel)
+	if registered[panel] and not InCombatLockdown() and SmartNavigation and SmartNavigation.RefreshButtonGroups then
+		pcall(SmartNavigation.RefreshButtonGroups, SmartNavigation, panel);
+	end
+end
+
+-------------------------------------------------------------------------------
+-- Own navigation: bindings
+-------------------------------------------------------------------------------
 
 local INPUT_NAME = "GestureCommandsNavInput";
 local KEYS = {
@@ -36,7 +99,6 @@ local panels = {}; -- open panels, topmost last
 local current = nil; -- highlighted control of the topmost panel
 local bound = false;
 local gaveUp = false;
-local activating = false;
 
 -- Owns the override bindings. Secure, so it can drop them when combat starts: addon code can't change
 -- bindings in combat.
@@ -77,10 +139,6 @@ CreateEdge("TOPLEFT", "TOPRIGHT", nil, 2);
 CreateEdge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 2);
 CreateEdge("TOPLEFT", "BOTTOMLEFT", 2, nil);
 CreateEdge("TOPRIGHT", "BOTTOMRIGHT", 2, nil);
-
--------------------------------------------------------------------------------
--- Bindings
--------------------------------------------------------------------------------
 
 local function OwnsKeys()
 	for key, command in pairs(KEYS) do
@@ -130,7 +188,7 @@ function Nav.IsBound()
 end
 
 -------------------------------------------------------------------------------
--- Highlight
+-- Own navigation: highlight
 -------------------------------------------------------------------------------
 
 local function TopPanel()
@@ -218,22 +276,20 @@ local function FindNext(panel, from, dx, dy)
 	return best;
 end
 
+-- Like SmartNavigation: a control's OnSmartNavClick replaces the click.
 local function Activate(control)
-	if control:IsObjectType("EditBox") then
+	local ok, err;
+	if control.OnSmartNavClick then
+		ok, err = pcall(control.OnSmartNavClick, control);
+	elseif control:IsObjectType("EditBox") then
+		ok = true;
 		control:SetFocus();
-		return;
+	else
+		ok, err = pcall(control.Click, control, "LeftButton");
 	end
-	activating = true;
-	local ok, err = pcall(control.Click, control, "LeftButton");
-	activating = false;
 	if not ok then
 		geterrorhandler()(err);
 	end
-end
-
--- True while a control is being clicked with the controller's A button (not the mouse).
-function Nav.IsActivating()
-	return activating;
 end
 
 local function OnInput(command)
@@ -244,9 +300,7 @@ local function OnInput(command)
 	if command == "B" then
 		if current and current:IsObjectType("EditBox") and current:HasFocus() then
 			current:ClearFocus();
-		elseif panel.OnNavBack then
-			panel:OnNavBack();
-		else
+		elseif not (panel.SmartNavigationCloseHandler and panel:SmartNavigationCloseHandler()) then
 			panel:Hide();
 		end
 		return;
@@ -273,10 +327,6 @@ input:SetScript("OnClick", function(_, command)
 	OnInput(command);
 end);
 
--------------------------------------------------------------------------------
--- Panels
--------------------------------------------------------------------------------
-
 local function Remove(panel)
 	for index = #panels, 1, -1 do
 		if panels[index] == panel then
@@ -287,7 +337,7 @@ local function Remove(panel)
 	return false;
 end
 
-function Nav.Open(panel)
+local function OwnOpen(panel)
 	local top = TopPanel();
 	if top and top ~= panel then
 		top.navCurrent = current;
@@ -301,7 +351,7 @@ function Nav.Open(panel)
 	Bind();
 end
 
-function Nav.Close(panel)
+local function OwnClose(panel)
 	local wasTop = TopPanel() == panel;
 	if not Remove(panel) then
 		return;
@@ -319,22 +369,53 @@ function Nav.Close(panel)
 	end
 end
 
--- Moves the highlight to a control of the topmost panel.
+-------------------------------------------------------------------------------
+-- Panels
+-------------------------------------------------------------------------------
+
+function Nav.UsesOwnNavigation()
+	return ns.DB().ownNavigation == true;
+end
+
+function Nav.Open(panel, isPopup)
+	local mode = Nav.UsesOwnNavigation() and "own" or (UsesGamepadUI() and "blizzard") or nil;
+	panelModes[panel] = mode;
+	if mode == "own" then
+		OwnOpen(panel);
+	elseif mode == "blizzard" then
+		blizzardPanels[panel] = isPopup and true or false;
+		Register(panel);
+	end
+end
+
+function Nav.Close(panel)
+	local mode = panelModes[panel];
+	panelModes[panel] = nil;
+	if mode == "own" then
+		OwnClose(panel);
+	elseif mode == "blizzard" then
+		blizzardPanels[panel] = nil;
+		Unregister(panel);
+	end
+end
+
+-- Moves our highlight to a control of the topmost panel (own navigation only).
 function Nav.Select(control)
 	if TopPanel() and IsUsable(control) then
 		Select(control);
 	end
 end
 
--- After a panel changes which controls are shown or enabled: keep the highlight on a usable one.
-function Nav.Refresh()
-	local panel = TopPanel();
-	if not panel then
+-- After a panel shows, hides or disables some of its controls.
+function Nav.Refresh(panel)
+	if panelModes[panel] == "blizzard" then
+		RefreshButtonGroups(panel);
 		return;
 	end
-	if not IsUsable(current) then
+	local top = TopPanel();
+	if top and not IsUsable(current) then
 		Select(nil);
-		Select(FindDefault(panel, panel.navCurrent));
+		Select(FindDefault(top, top.navCurrent));
 	end
 end
 
@@ -344,12 +425,29 @@ events:RegisterEvent("PLAYER_REGEN_ENABLED");
 events:RegisterEvent("UPDATE_BINDINGS");
 events:SetScript("OnEvent", function(_, event)
 	if event == "PLAYER_REGEN_DISABLED" then
-		-- The secure driver has dropped the bindings.
+		-- The secure driver has dropped our bindings. Windows in Blizzard's gamepad UI close now, while it
+		-- still takes the change.
 		bound = false;
+		local open = {};
+		for panel in pairs(blizzardPanels) do
+			table.insert(open, panel);
+		end
+		for _, panel in ipairs(open) do
+			panel:Hide();
+		end
 	elseif event == "PLAYER_REGEN_ENABLED" then
 		RegisterCombatDriver();
 		if #panels > 0 then
 			Bind();
+		end
+		-- Catch up on windows opened or closed in combat.
+		for panel in pairs(registered) do
+			if blizzardPanels[panel] == nil then
+				Unregister(panel);
+			end
+		end
+		for panel in pairs(blizzardPanels) do
+			Register(panel);
 		end
 	elseif event == "UPDATE_BINDINGS" and bound and not checkPending then
 		checkPending = true;

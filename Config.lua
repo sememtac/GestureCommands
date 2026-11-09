@@ -4,8 +4,8 @@
 -- gesture, or press Place on bar, to put it on the crossbar. Editing is locked in combat because the secure
 -- configuration and the gesture macros can only change out of combat.
 --
--- Controller: the window doesn't join Blizzard's gamepad UI (that taints it); Navigation.lua gives it its
--- own D-pad navigation while it's open.
+-- Controller: the window joins Blizzard's gamepad UI like its own panels (LT / RT, View, A, B), or uses
+-- our own D-pad navigation with `/gestures padnav own`; see Navigation.lua.
 
 local _, ns = ...;
 
@@ -90,7 +90,9 @@ local function Refresh()
 		status = "|cff33ff99On.|r Press Test to check your setup.";
 	end
 	statusText:SetText(status);
-	ns.Nav.Refresh();
+	frame.ControllerHint:SetText(ns.Nav.UsesOwnNavigation() and "Controller: D-pad moves, A selects, X clears a slot, B closes."
+		or "Controller: LT / RT reach this window, A selects, B closes.");
+	ns.Nav.Refresh(frame);
 end
 ns.OnPublished = Refresh;
 
@@ -160,19 +162,20 @@ local function ChooseForSlot(slot)
 	end);
 end
 
--- With the controller's A button: close the window and let the next crossbar press choose the slot, because
--- a controller can't drop a cursor action on the crossbar. With the mouse: put the gesture's macro on the
--- cursor to drop on a slot.
-local function PlaceSelected()
-	if not selected then
-		return;
+-- With the mouse: put the gesture's macro on the cursor to drop on a crossbar slot.
+local function PickupSelected()
+	if selected then
+		ns.PickupGesture(selected);
 	end
-	if ns.Nav.IsActivating() then
+end
+
+-- With the controller (A): close the window and let the next crossbar press choose the slot, because a
+-- controller can't drop a cursor action on the crossbar.
+local function PlaceSelectedWithController()
+	if selected then
 		local index = selected;
 		frame:Hide();
 		ns.StartPlacing(index);
-	else
-		ns.PickupGesture(selected);
 	end
 end
 
@@ -217,7 +220,7 @@ local function CreateSlot(parent, mode, y)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText(label:GetText());
 		GameTooltip:AddLine(SLOT_HINTS[mode], 1, 1, 1, true);
-		GameTooltip:AddLine("Click (A) to choose, or drag one here. Right-click (X) to clear.", 0.6, 0.6, 0.6, true);
+		GameTooltip:AddLine("Click (A) to choose, or drag one here. Right-click to clear (or Clear in the list).", 0.6, 0.6, 0.6, true);
 		GameTooltip:Show();
 	end);
 	slot:SetScript("OnLeave", GameTooltip_Hide);
@@ -275,7 +278,7 @@ local function CreateEditorHeader(editor)
 	header.Icon:SetAllPoints();
 	iconButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD");
 	iconButton:SetScript("OnClick", OpenNameIconPicker);
-	iconButton:SetScript("OnDragStart", PlaceSelected);
+	iconButton:SetScript("OnDragStart", PickupSelected);
 	iconButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture");
@@ -300,11 +303,13 @@ local function CreateEditorHeader(editor)
 	header.Place:SetSize(110, 20);
 	header.Place:SetPoint("LEFT", header.Edit, "RIGHT", 6, 0);
 	header.Place:SetText("Place on bar");
-	header.Place:SetScript("OnClick", PlaceSelected);
+	header.Place:SetScript("OnClick", PickupSelected);
+	-- A controller's A press (SmartNavigation, or our own navigation) calls this instead of clicking.
+	header.Place.OnSmartNavClick = PlaceSelectedWithController;
 	header.Place:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Place on bar");
-		GameTooltip:AddLine("Controller (A): closes this window - then press the crossbar button you want the gesture on. Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
+		GameTooltip:AddLine("Controller (A): closes this window - then press the crossbar button you want the gesture on (with another window open, press View first to get back to the game). Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	header.Place:SetScript("OnLeave", GameTooltip_Hide);
@@ -331,6 +336,12 @@ local function CreateConfigFrame()
 		ns.ClosePicker();
 		ns.Nav.Close(self);
 	end);
+	-- Controller B: close it ourselves. Without this, Blizzard's gamepad UI would press the close button,
+	-- running its panel manager from our frame.
+	function frame:SmartNavigationCloseHandler()
+		self:Hide();
+		return true;
+	end
 	frame:Hide();
 	tinsert(UISpecialFrames, "GestureCommandsFrame");
 
@@ -404,11 +415,10 @@ local function CreateConfigFrame()
 	frame.New = new;
 	table.insert(navControls, new);
 
-	local controllerHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
-	controllerHint:SetPoint("BOTTOMLEFT", 16, 40);
-	controllerHint:SetWidth(230);
-	controllerHint:SetJustifyH("LEFT");
-	controllerHint:SetText("Controller: D-pad moves, A selects, X clears a slot, B closes.");
+	frame.ControllerHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
+	frame.ControllerHint:SetPoint("BOTTOMLEFT", 16, 40);
+	frame.ControllerHint:SetWidth(230);
+	frame.ControllerHint:SetJustifyH("LEFT");
 
 	-- Editor for the selected gesture
 	local editor = CreateFrame("Frame", nil, frame, "InsetFrameTemplate");
@@ -485,6 +495,12 @@ function ns.ToggleConfig()
 		CreateConfigFrame();
 	end
 	frame:SetShown(not frame:IsShown());
+end
+
+function ns.CloseConfig()
+	if frame then
+		frame:Hide();
+	end
 end
 
 -- Settings > AddOns entry: a button that opens the window.
