@@ -510,7 +510,7 @@ function ns.ToggleConfig()
 end
 
 function ns.CloseConfig()
-	if frame then
+	if frame and frame:IsShown() then
 		frame:Hide();
 	end
 end
