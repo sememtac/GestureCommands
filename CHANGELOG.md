@@ -11,7 +11,8 @@ First release.
 - The Tap can be a spell, an item, or one of your macros that shows one; the gesture is whatever crossbar
   slot holds it. Gesture Commands creates no macros (and removes the ones versions before 0.10 made).
   Optional name and icon, shown on the crossbar buttons that hold the gesture's Tap.
-- Setup window (minimap button, the minimap's addons menu, `/gestures`, or Options > AddOns): choose actions from your spells, items, mounts and
+- Setup window (the gamepad main menu dial, minimap button, the minimap's addons menu, `/gestures`, or
+  Options > AddOns): choose actions from your spells, items, mounts and
   macros (or drag them in), hold timing; **Bind** puts a gesture on the next crossbar button you press
   (or drag it onto the crossbar).
 - Full controller support in the setup window, through the game's controller navigation like Blizzard's

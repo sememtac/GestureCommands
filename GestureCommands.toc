@@ -16,3 +16,4 @@ Navigation.lua
 Picker.lua
 Config.lua
 MinimapButton.lua
+RadialEntry.lua

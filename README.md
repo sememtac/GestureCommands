@@ -17,9 +17,10 @@ icon and cooldown, and every other button works exactly as before.
 
 ## Setup
 
-1. Click the Gesture Commands button on the minimap (or pick it in the minimap's addons menu), type
-   `/gestures`, use Options > AddOns > Gesture Commands, or set a key for it in Options > Keybindings >
-   AddOns.
+1. Open the window: with a controller, from the game's main menu dial (menu button, LB / RB to its last
+   page, choose **Gesture Commands**, then press B - the window opens as the dial closes). Or click the
+   Gesture Commands button on the minimap (or pick it in the minimap's addons menu), type `/gestures`, use
+   Options > AddOns > Gesture Commands, or set a key for it in Options > Keybindings > AddOns.
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
    - **Tap**: a spell, an item, or one of your macros that shows a spell or item (`#showtooltip`). A tap casts
