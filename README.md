@@ -20,7 +20,7 @@ icon and cooldown, and every other button works exactly as before.
 1. Type `/gestures` (or Options > AddOns > Gesture Commands).
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
-   - **Tap (trigger)**: a spell or item (or a macro that shows a spell). A tap casts it.
+   - **Tap**: a spell or item (or a macro that shows a spell). A tap casts it.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
@@ -63,7 +63,7 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 |---|---|
 | `/gestures` | Open the setup window |
 | `/gestures on` / `off` | Turn it on (the default) or off. `off` returns your buttons to normal immediately |
-| `/gestures test` | Check your gestures, where their triggers are, and the hold timing |
+| `/gestures test` | Check your gestures, where their Tap actions are on the crossbar, and the hold timing |
 | `/gestures hold 4` / `hold2 9` | Hold / long-hold length in steps of about 0.2 s (defaults 3 and 7) |
 | `/gestures padnav own` / `blizzard` | Controller navigation of the window: its own, or the game's (the default) |
 | `/gestures debug` | Print where each crossbar press goes (for troubleshooting) |
@@ -71,8 +71,8 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 ## Good to know
 
 - **Crossbar only**: it works with the gamepad crossbar (all bars and pages), not keyboard action bars.
-- **One gesture per trigger**: the same spell on two slots shares the same gesture, and every rank of a
-  spell counts as the same trigger.
+- **One gesture per Tap**: the same spell on two slots shares the same gesture, and every rank of a
+  spell counts as the same Tap.
 - **Taps act on release**, so a tap has a tiny delay compared with a normal button.
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.

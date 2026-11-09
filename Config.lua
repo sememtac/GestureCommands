@@ -58,7 +58,7 @@ local function Refresh()
 	editor.Header:SetShown(gesture ~= nil);
 	if gesture then
 		editor.Header.Icon:SetTexture(ns.GetGestureIcon(gesture));
-		editor.Header.Name:SetText(gesture.trigger and ns.GetGestureName(gesture) or "|cff999999Give it a Tap trigger first|r");
+		editor.Header.Name:SetText(gesture.trigger and ns.GetGestureName(gesture) or "|cff999999Choose its Tap first|r");
 		editor.Header.Edit:SetEnabled(gesture.trigger ~= nil);
 		editor.Header.Bind:SetEnabled(gesture.trigger ~= nil);
 	end
@@ -84,7 +84,7 @@ local function Refresh()
 	elseif ns.IsTotemCommandsActive() then
 		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
-		status = "|cffffd100Two gestures share a trigger; only the later one is used.|r";
+		status = "|cffffd100Two gestures have the same Tap; only the later one is used.|r";
 	elseif db.enabled == false then
 		status = "Off - tick Enabled to use your gestures.";
 	else
@@ -129,7 +129,7 @@ local function AssignAction(mode, action)
 	if action and mode == "trigger" then
 		local trigger = ns.MakeTrigger(action);
 		if not trigger then
-			ns.Print("a trigger must be a spell or item, or a macro that shows one (#showtooltip).");
+			ns.Print("Tap must be a spell or item, or a macro that shows one (#showtooltip).");
 			return false;
 		end
 		action = trigger;
@@ -189,7 +189,7 @@ end
 local function CreateSlot(parent, mode, y)
 	local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal");
 	label:SetPoint("TOPLEFT", 16, y);
-	label:SetText(mode == "trigger" and "Tap (trigger)" or ns.MODE_LABELS[mode]);
+	label:SetText(ns.MODE_LABELS[mode]);
 
 	local slot = CreateFrame("Button", nil, parent);
 	slot.mode = mode;
@@ -409,7 +409,7 @@ local function CreateConfigFrame()
 	intro:SetPoint("TOPLEFT", 14, -30);
 	intro:SetPoint("TOPRIGHT", -14, -30);
 	intro:SetJustifyH("LEFT");
-	intro:SetText("A gesture is a macro for your gamepad: give it a Tap trigger plus Hold / Long hold actions, a name and an icon, then place it on your crossbar. A tap does the trigger; holds cast your actions.");
+	intro:SetText("A gesture is a macro for your gamepad: choose what a Tap, a Hold and a Long hold of its button do, give it a name and an icon, then bind it to your crossbar.");
 
 	-- Gesture list
 	rows = {};

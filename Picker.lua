@@ -136,7 +136,7 @@ local function GetMacroEntries()
 	return entries;
 end
 
-local AUTO_ICON_ENTRY = { icon = QUESTION_MARK_ICON, name = "Automatic: the Tap trigger's icon" };
+local AUTO_ICON_ENTRY = { icon = QUESTION_MARK_ICON, name = "Automatic: the Tap action's icon" };
 
 -- The gesture's own actions' icons, then the spellbook's.
 local function GetSuggestedIcons()
@@ -320,7 +320,7 @@ local function CreatePicker()
 	picker.NameBox:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture name");
-		GameTooltip:AddLine("Shown on the macro. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap trigger's name.", 1, 1, 1, true);
+		GameTooltip:AddLine("Shown on the macro. Type it with the keyboard (A starts typing, B stops). Empty uses the Tap action's name.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	picker.NameBox:SetScript("OnLeave", GameTooltip_Hide);
@@ -513,7 +513,7 @@ function ns.OpenActionPicker(anchor, gestureIndex, slotMode, onChosen)
 	end
 	state = { mode = "action", gestureIndex = gestureIndex, slotMode = slotMode, onChosen = onChosen };
 	Open(anchor, "action");
-	picker.Title:SetText("Choose: " .. (slotMode == "trigger" and "Tap (trigger)" or ns.MODE_LABELS[slotMode]));
+	picker.Title:SetText("Choose: " .. ns.MODE_LABELS[slotMode]);
 	picker.Hint:SetText(ACTION_HINTS[slotMode]);
 	picker.Clear:SetShown(gesture[slotMode] ~= nil);
 end

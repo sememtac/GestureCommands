@@ -618,7 +618,7 @@ function ns.StartPlacing(index)
 	end
 	local gesture = DB().gestures[index];
 	if not (gesture and gesture.trigger) then
-		Print("set this gesture's Tap (trigger) first.");
+		Print("choose this gesture's Tap first.");
 		return false;
 	end
 	if not SyncMacro(gesture) then
@@ -678,7 +678,7 @@ function ns.PickupGesture(index)
 	end
 	local gesture = DB().gestures[index];
 	if not (gesture and gesture.trigger) then
-		Print("set this gesture's Tap (trigger) first.");
+		Print("choose this gesture's Tap first.");
 		return false;
 	end
 	local macroIndex = SyncMacro(gesture);
@@ -699,7 +699,7 @@ function ns.PickupTrigger(index)
 	local gesture = DB().gestures[index];
 	local trigger = gesture and gesture.trigger;
 	if not trigger then
-		Print("set this gesture's Tap (trigger) first.");
+		Print("choose this gesture's Tap first.");
 		return false;
 	end
 	if trigger.kind == "item" then
@@ -801,7 +801,7 @@ function ns.RunTest()
 			end
 		end
 		Print(("%d. %s  (on %d crossbar slot%s of this page)%s"):format(index, table.concat(parts, ", "), slots,
-			slots == 1 and "" or "s", ns.conflicts and ns.conflicts[index] and " - same trigger as another gesture!" or ""));
+			slots == 1 and "" or "s", ns.conflicts and ns.conflicts[index] and " - same Tap as another gesture!" or ""));
 	end
 	local start = header:GetAttribute("tickcount") or 0;
 	C_Timer.After(2, function()
