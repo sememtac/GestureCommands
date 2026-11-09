@@ -415,7 +415,7 @@ function ns.SetEnabled(enabled)
 		return false;
 	end
 	if enabled and IsTotemCommandsActive() then
-		Print("Totem Commands is on and uses the same buttons. Type /totemcommands off first (the Totems preset here does the same job).");
+		Print("Totem Commands is on and uses the same buttons. Type /totemcommands off first.");
 		return false;
 	end
 	DB().enabled = enabled;
@@ -447,20 +447,29 @@ function ns.SetGestureAction(index, mode, action)
 	Publish();
 end
 
-local function FindKnownSpell(name)
-	local info = C_Spell.GetSpellInfo(name);
-	return info and info.spellID and { kind = "spell", id = info.spellID, name = info.name } or nil;
+-- Puts the gesture's trigger on the cursor so it can be dropped on a crossbar slot; that slot then has the
+-- gesture. Ranked spells use the highest rank the character knows.
+function ns.PickupTrigger(index)
+	if InCombatLockdown() then
+		Print("can't place actions in combat.");
+		return false;
+	end
+	local gesture = DB().gestures[index];
+	local trigger = gesture and gesture.trigger;
+	if not trigger then
+		Print("set this gesture's Tap (trigger) first.");
+		return false;
+	end
+	if trigger.kind == "item" then
+		C_Item.PickupItem(trigger.id);
+	else
+		local name = C_Spell.GetSpellName(trigger.id) or trigger.name;
+		local best = name and C_Spell.GetSpellInfo(name);
+		C_Spell.PickupSpell(best and best.spellID or trigger.id);
+	end
+	return true;
 end
 
--- The Totem Commands setup as a gesture.
-function ns.AddTotemsPreset()
-	local trigger = FindKnownSpell("Call of the Elements");
-	if not trigger then
-		Print("you don't know Call of the Elements on this character.");
-		return nil;
-	end
-	return ns.AddGesture({ trigger = trigger, hold = FindKnownSpell("Totemic Recall"), long = FindKnownSpell("Totemic Call") });
-end
 
 -------------------------------------------------------------------------------
 -- Feedback and debug
@@ -607,10 +616,6 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		if ns.SetEnabled(msg == "on") then
 			Print(msg == "on" and "on." or "off - crossbar buttons behave normally.");
 		end
-	elseif msg == "preset totems" then
-		if ns.AddTotemsPreset() then
-			Print("added the Totems gesture (Call of the Elements / Totemic Recall / Totemic Call).");
-		end
 	elseif msg == "debug" or holdArg or hold2Arg then
 		if InCombatLockdown() then
 			Print("can't change this in combat.");
@@ -638,6 +643,6 @@ SlashCmdList.GESTURECOMMANDS = function(msg)
 		end
 		Publish();
 	else
-		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>, preset totems.");
+		Print("/gestures opens the window. Also: on, off, test, debug, hold <n>, hold2 <n>.");
 	end
 end;

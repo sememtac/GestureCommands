@@ -8,7 +8,7 @@ local _, ns = ...;
 local MAX_ROWS = 10;
 local SLOT_SIZE = 40;
 local SLOT_HINTS = {
-	trigger = "The button you press: drag the spell or item from your crossbar, or a macro that shows a spell. A tap does what that slot normally does.",
+	trigger = "The button you press: drop a spell, item, or a macro that shows a spell here. Then drag this box (or the gesture in the list) onto your crossbar - that slot becomes the gesture. A tap does what the slot normally does.",
 	hold = "Cast when you hold the button (about 0.5 s). Drag a spell, item, toy, mount or macro here.",
 	long = "Cast when you keep holding the button (about 1.4 s). Drag a spell, item, toy, mount or macro here.",
 };
@@ -62,7 +62,7 @@ local function Refresh()
 	if InCombatLockdown() then
 		status = "|cffff6060Editing is locked in combat.|r";
 	elseif ns.IsTotemCommandsActive() then
-		status = "|cffff6060Totem Commands is on: type /totemcommands off (or use the Totems preset).|r";
+		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
 		status = "|cffffd100Two gestures share a trigger; only the later one is used.|r";
 	elseif not db.enabled then
@@ -132,6 +132,13 @@ local function CreateSlot(parent, mode, y)
 	slot.Name:SetJustifyH("LEFT");
 
 	slot:SetScript("OnReceiveDrag", OnSlotReceive);
+	if mode == "trigger" then
+		slot:SetScript("OnDragStart", function()
+			if selected then
+				ns.PickupTrigger(selected);
+			end
+		end);
+	end
 	slot:SetScript("OnClick", function(self, mouseButton)
 		if mouseButton == "RightButton" then
 			if CanEdit() and selected then
@@ -204,7 +211,7 @@ local function CreateConfigFrame()
 	intro:SetPoint("TOPLEFT", 14, -30);
 	intro:SetPoint("TOPRIGHT", -14, -30);
 	intro:SetJustifyH("LEFT");
-	intro:SetText("Tap, hold or long-hold a crossbar button. Each gesture attaches to a spell or item on your crossbar: a tap does what the slot normally does, holds cast what you put below.");
+	intro:SetText("Make a gesture, give it a Tap trigger and Hold / Long hold actions, then drag the gesture from the list onto your crossbar. A tap does what the slot normally does; holds cast your actions.");
 
 	-- Gesture list
 	rows = {};
@@ -231,6 +238,19 @@ local function CreateConfigFrame()
 			selected = index;
 			Refresh();
 		end);
+		row:RegisterForDrag("LeftButton");
+		row:SetScript("OnDragStart", function()
+			selected = index;
+			Refresh();
+			ns.PickupTrigger(index);
+		end);
+		row:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+			GameTooltip:SetText(self.Text:GetText() or "");
+			GameTooltip:AddLine("Drag onto your crossbar to place this gesture.", 1, 1, 1, true);
+			GameTooltip:Show();
+		end);
+		row:SetScript("OnLeave", GameTooltip_Hide);
 		rows[index] = row;
 	end
 	frame.TooMany = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
@@ -244,16 +264,6 @@ local function CreateConfigFrame()
 	new:SetScript("OnClick", function()
 		if CanEdit() then
 			selected = ns.AddGesture({});
-			Refresh();
-		end
-	end);
-	local preset = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate");
-	preset:SetSize(110, 22);
-	preset:SetPoint("LEFT", new, "RIGHT", 8, 0);
-	preset:SetText("Totems preset");
-	preset:SetScript("OnClick", function()
-		if CanEdit() then
-			selected = ns.AddTotemsPreset() or selected;
 			Refresh();
 		end
 	end);

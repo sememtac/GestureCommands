@@ -21,9 +21,9 @@ icon and cooldown, and every other button works exactly as before.
 2. **New gesture**, then drag onto the three boxes:
    - **Tap (trigger)**: the spell or item that is on your crossbar (or a macro that shows a spell).
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. Tick **Enabled**, then **Test** to check your setup.
-
-Shaman? The **Totems preset** sets up Call of the Elements / Totemic Recall / Totemic Call in one click.
+3. Drag the gesture from the list onto your crossbar. That slot is now a gesture button (a slot that
+   already has the trigger spell or item works too).
+4. Tick **Enabled**, then **Test** to check your setup.
 
 ### Custom tap actions
 
@@ -38,7 +38,6 @@ tap runs the macro. So for a dedicated gesture button, put a macro on your cross
 | `/gestures on` / `off` | Turn it on or off. `off` returns your buttons to normal immediately |
 | `/gestures test` | Check your gestures, where their triggers are, and the hold timing |
 | `/gestures hold 4` / `hold2 9` | Hold / long-hold length in steps of about 0.2 s (defaults 3 and 7) |
-| `/gestures preset totems` | Add the shaman Totems gesture |
 | `/gestures debug` | Print where each crossbar press goes (for troubleshooting) |
 
 ## Good to know
@@ -50,8 +49,7 @@ tap runs the macro. So for a dedicated gesture button, put a macro on your cross
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.
 - Gestures can only be edited out of combat; using them works in combat.
-- If you use **Totem Commands**, turn it off (`/totemcommands off`): both work on the same buttons. The
-  Totems preset here does the same job.
+- If you use **Totem Commands**, turn it off (`/totemcommands off`): both work on the same buttons.
 
 ## How it works
 
