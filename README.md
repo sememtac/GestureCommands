@@ -24,7 +24,9 @@ icon and cooldown, and every other button works exactly as before.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
-   for the other bars; nothing is cast by that press). With a mouse, Bind (or dragging the gesture from the
+   for the other bars, both shoulders + D-pad left / right for another page; nothing is cast by that press).
+   A banner shows what you're binding and the time left (60 s); open `/gestures` to cancel. In combat your
+   buttons work normally and the bind waits for a press after the fight. With a mouse, Bind (or dragging the gesture from the
    list) puts it on your cursor to drop on a crossbar slot.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 

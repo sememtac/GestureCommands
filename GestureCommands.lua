@@ -60,8 +60,9 @@ header:SetAttribute("_onstate-tick", [[
 -- Runs before Blizzard's OnClick on every wrapped crossbar button. Triggers are looked up by what the slot
 -- shows: "g:spell:<id>" / "g:item:<id>" hold the gesture number (a macro counts as the spell/item it shows).
 local PRE_CLICK = [[
-	-- Place mode: the next crossbar press only says where to put a gesture.
-	if control:GetAttribute("placing") then
+	-- Place mode: the next crossbar press only says where to put a gesture. Not in combat: there every press
+	-- does its action, and the gesture waits for a press after the fight.
+	if control:GetAttribute("placing") and SecureCmdOptionParse("[combat] 1; 0") ~= "1" then
 		if down then
 			control:SetAttribute("placing", false);
 			control:SetAttribute("placeSlot", self:GetID());
@@ -582,12 +583,19 @@ end
 
 -- Place mode, for controllers: there is no way to drop a cursor action on the crossbar with a gamepad, so
 -- the next crossbar press (caught and swallowed by the secure hook) picks the slot, and the gesture's macro
--- is put there out of combat. Times out if no crossbar button is pressed.
-local PLACE_TIMEOUT = 15;
-local placing = nil; -- { index = gesture index, token = unique id }
+-- is put there out of combat. Times out if no crossbar button is pressed; the setup window shows a banner
+-- meanwhile (ns.OnPlacingChanged).
+local PLACE_TIMEOUT = 60;
+local placing = nil; -- { index = gesture index, token = unique id, endsAt = GetTime() deadline, expired = bool }
 
 function ns.IsPlacing()
 	return placing ~= nil;
+end
+
+local function NotifyPlacing()
+	if ns.OnPlacingChanged then
+		ns.OnPlacingChanged(placing and DB().gestures[placing.index], placing and placing.endsAt);
+	end
 end
 
 function ns.CancelPlacing(quiet)
@@ -597,8 +605,9 @@ function ns.CancelPlacing(quiet)
 	placing = nil;
 	header:SetAttribute("placing", false);
 	header:SetAttribute("placeSlot", nil);
+	NotifyPlacing();
 	if not quiet then
-		Print("placing cancelled.");
+		Print("bind cancelled (no crossbar button pressed).");
 	end
 end
 
@@ -617,13 +626,19 @@ function ns.StartPlacing(index)
 	end
 	WrapCrossbarButtons();
 	local token = {};
-	placing = { index = index, token = token };
+	placing = { index = index, token = token, endsAt = GetTime() + PLACE_TIMEOUT };
 	header:SetAttribute("placeSlot", nil);
 	header:SetAttribute("placing", true);
 	UIErrorsFrame:AddMessage(("Press the crossbar button for %s"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
+	NotifyPlacing();
 	C_Timer.After(PLACE_TIMEOUT, function()
 		if placing and placing.token == token then
-			ns.CancelPlacing();
+			-- Can't change the secure state in combat: cancel when it ends.
+			if InCombatLockdown() then
+				placing.expired = true;
+			else
+				ns.CancelPlacing();
+			end
 		end
 	end);
 	return true;
@@ -634,6 +649,7 @@ local function FinishPlacing(slot)
 	local gesture = placing and DB().gestures[placing.index];
 	placing = nil;
 	header:SetAttribute("placeSlot", nil);
+	NotifyPlacing();
 	local macroIndex = gesture and SyncMacro(gesture);
 	if not macroIndex then
 		return;
@@ -816,6 +832,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
 				event == "ADDON_ACTION_FORBIDDEN" and "forbidden" or "blocked in combat"));
 		end
 		return;
+	end
+	if event == "PLAYER_REGEN_ENABLED" and placing and placing.expired then
+		-- A bind that ran out in combat.
+		ns.CancelPlacing();
 	end
 	if event == "ADDON_LOADED" then
 		if ... == ADDON_NAME then
