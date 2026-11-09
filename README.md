@@ -23,7 +23,9 @@ icon and cooldown, and every other button works exactly as before.
    - **Tap (trigger)**: a spell or item (or a macro that shows a spell). A tap casts it.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. **Name & icon** (or click the gesture's icon): pick a name and an icon, just like for a macro.
-4. **Place on bar** (or drag the gesture from the list) and drop it on a crossbar slot.
+4. **Bind**: opens the game's Macros window on your Character tab, where the gesture is a macro. Select it and
+   press **X (Bind)**: the game's own bind screen asks for the crossbar button. With a mouse you can also drag
+   the gesture from the list onto a crossbar slot.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
 Each gesture is stored as one of your **character macros** (with your name and icon, casting the Tap
@@ -34,14 +36,14 @@ holds the Tap spell or item directly also works as the gesture.
 
 The window works with the game's controller navigation like Blizzard's own windows: **LT / RT** switch
 between it and other open windows (bags, spellbook...), the **View** button switches between the game and
-the windows, the D-pad moves between buttons, **A** selects and **B** goes back / closes. Selecting a box
-opens a list of your spells, items, mounts and macros, so no mouse is needed; **Clear** in that list
-empties the box. **Place on bar** closes the window and asks you to press the crossbar button you want the
-gesture on (any bar, with or without L1/R1; if another window is still open, press View first); nothing is
-cast by that press. Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with
-the Tap spell's name, so you only need to type if you want a different one.
+the windows, the D-pad moves between buttons, **A** selects and **B** goes back / closes; like the game's
+panels, the window shows the LT / RT / View glyphs and a focus glow, and button prompts at the bottom.
+Selecting a box opens a list of your spells, items, mounts and macros, so no mouse is needed; **Clear** in
+that list empties the box. **Bind** goes to the game's Macros window (see Setup) - the binding itself is the
+game's. Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with the Tap
+spell's name, so you only need to type if you want a different one.
 
-The windows close when you enter combat (editing is locked in combat anyway).
+The window opens out of combat only and closes when you enter combat (editing is locked in combat anyway).
 
 If the game ever shows "Gesture Commands: Blizzard blocked ..." while you use the window, type
 `/gestures padnav own`: the window then uses its own navigation instead (the D-pad moves a yellow

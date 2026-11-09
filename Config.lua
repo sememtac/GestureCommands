@@ -1,8 +1,9 @@
 -- Gesture Commands: setup window. A list of gestures on the left; on the right, the selected gesture's name
 -- and icon (edited like a macro's) and three slots: Tap (trigger), Hold, Long hold. Click a slot to choose a
--- spell, item, mount or macro for it, or drag one onto it; right-click (X on a controller) clears it. Drag a
--- gesture, or press Place on bar, to put it on the crossbar. Editing is locked in combat because the secure
--- configuration and the gesture macros can only change out of combat.
+-- spell, item, mount or macro for it, or drag one onto it; right-click clears it. Each gesture is a character
+-- macro: Bind takes it to the game's own bind screen (through the Macros window), or drag it onto the
+-- crossbar. The window only opens out of combat and closes when combat starts: the secure configuration and
+-- the macros can only change out of combat, and the Bind button makes the window protected.
 --
 -- Controller: the window joins Blizzard's gamepad UI like its own panels (LT / RT, View, A, B), or uses
 -- our own D-pad navigation with `/gestures padnav own`; see Navigation.lua.
@@ -26,7 +27,7 @@ local navControls = {};
 -------------------------------------------------------------------------------
 
 local function Refresh()
-	if not (frame and frame:IsShown()) then
+	if not (frame and frame:IsShown()) or InCombatLockdown() then
 		return;
 	end
 	local db = ns.DB();
@@ -59,7 +60,7 @@ local function Refresh()
 		editor.Header.Icon:SetTexture(ns.GetGestureIcon(gesture));
 		editor.Header.Name:SetText(gesture.trigger and ns.GetGestureName(gesture) or "|cff999999Give it a Tap trigger first|r");
 		editor.Header.Edit:SetEnabled(gesture.trigger ~= nil);
-		editor.Header.Place:SetEnabled(gesture.trigger ~= nil);
+		editor.Header.Bind:SetEnabled(gesture.trigger ~= nil);
 	end
 	for mode, slot in pairs(slots) do
 		local name, icon = ns.GetActionDisplay(gesture and gesture[mode]);
@@ -78,9 +79,7 @@ local function Refresh()
 	hold2Text:SetText(("Long hold: %d ticks (~%.1f s)"):format(ns.GetHold2Ticks(), ns.GetHold2Ticks() * 0.2));
 
 	local status;
-	if InCombatLockdown() then
-		status = "|cffff6060Editing is locked in combat.|r";
-	elseif ns.IsTotemCommandsActive() then
+	if ns.IsTotemCommandsActive() then
 		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
 		status = "|cffffd100Two gestures share a trigger; only the later one is used.|r";
@@ -90,8 +89,13 @@ local function Refresh()
 		status = "|cff33ff99On.|r Press Test to check your setup.";
 	end
 	statusText:SetText(status);
-	frame.ControllerHint:SetText(ns.Nav.UsesOwnNavigation() and "Controller: D-pad moves, A selects, X clears a slot, B closes."
-		or "Controller: LT / RT reach this window, A selects, B closes.");
+	local ownNavigation = ns.Nav.UsesOwnNavigation();
+	frame.Footer:SetShown(ownNavigation or ns.Nav.UsesGamepadUI());
+	if ownNavigation then
+		frame.Footer:SetPrompts({ { GAMEPAD_FACE_BOTTOM, "Select" }, { GAMEPAD_FACE_LEFT, "Clear" }, { GAMEPAD_FACE_RIGHT, "Close" } });
+	else
+		frame.Footer:SetPrompts({ { GAMEPAD_FACE_BOTTOM, "Select" }, { GAMEPAD_FACE_RIGHT, "Close" } });
+	end
 	ns.Nav.Refresh(frame);
 end
 ns.OnPublished = Refresh;
@@ -166,16 +170,6 @@ end
 local function PickupSelected()
 	if selected then
 		ns.PickupGesture(selected);
-	end
-end
-
--- With the controller (A): close the window and let the next crossbar press choose the slot, because a
--- controller can't drop a cursor action on the crossbar.
-local function PlaceSelectedWithController()
-	if selected then
-		local index = selected;
-		frame:Hide();
-		ns.StartPlacing(index);
 	end
 end
 
@@ -282,7 +276,7 @@ local function CreateEditorHeader(editor)
 	iconButton:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 		GameTooltip:SetText("Gesture");
-		GameTooltip:AddLine("Click to change the name and icon. Drag onto your crossbar to place it.", 1, 1, 1, true);
+		GameTooltip:AddLine("Click to change the name and icon. Drag onto your crossbar to place it, or use Bind.", 1, 1, 1, true);
 		GameTooltip:Show();
 	end);
 	iconButton:SetScript("OnLeave", GameTooltip_Hide);
@@ -299,24 +293,37 @@ local function CreateEditorHeader(editor)
 	header.Edit:SetText("Name & icon");
 	header.Edit:SetScript("OnClick", OpenNameIconPicker);
 
-	header.Place = CreateFrame("Button", nil, header, "UIPanelButtonTemplate");
-	header.Place:SetSize(110, 20);
-	header.Place:SetPoint("LEFT", header.Edit, "RIGHT", 6, 0);
-	header.Place:SetText("Place on bar");
-	header.Place:SetScript("OnClick", PickupSelected);
-	-- A controller's A press (SmartNavigation, or our own navigation) calls this instead of clicking.
-	header.Place.OnSmartNavClick = PlaceSelectedWithController;
-	header.Place:SetScript("OnEnter", function(self)
+	-- Bind: the game's own bind screen, through its Macros window, where each gesture is a character macro
+	-- (select it, press X). Opening that window or the bind screen from addon code would taint the gamepad
+	-- UI, so this is a secure button: the game runs "/macro" as its own code. Being secure, it makes the
+	-- window protected, so the window never stays open in combat.
+	header.Bind = CreateFrame("Button", "GestureCommandsBindButton", header, "SecureActionButtonTemplate, UIPanelButtonTemplate");
+	header.Bind:SetSize(110, 20);
+	header.Bind:SetPoint("LEFT", header.Edit, "RIGHT", 6, 0);
+	header.Bind:SetText("Bind");
+	header.Bind:RegisterForClicks("AnyUp");
+	header.Bind.navSecureClick = true;
+	header.Bind:SetAttribute("useOnKeyDown", false);
+	header.Bind:SetAttribute("type", "macro");
+	header.Bind:SetAttribute("macrotext", "/macro\n/click MacroFrameTab2");
+	header.Bind:SetScript("PostClick", function()
+		local gesture = selected and ns.DB().gestures[selected];
+		if gesture then
+			UIErrorsFrame:AddMessage(("Select %s and press X (Bind)"):format(ns.GetGestureName(gesture)), 1, 0.82, 0);
+		end
+	end);
+	header.Bind:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-		GameTooltip:SetText("Place on bar");
-		GameTooltip:AddLine("Controller (A): closes this window - then press the crossbar button you want the gesture on (with another window open, press View first to get back to the game). Mouse: puts the gesture on your cursor to drop on a crossbar slot.", 1, 1, 1, true);
+		GameTooltip:SetText("Bind");
+		GameTooltip:AddLine("Opens the Macros window on your Character tab. Select this gesture there and press X (Bind): the game's bind screen asks for the crossbar button.", 1, 1, 1, true);
+		GameTooltip:AddLine("With a mouse you can also drag the gesture's icon onto the crossbar.", 0.6, 0.6, 0.6, true);
 		GameTooltip:Show();
 	end);
-	header.Place:SetScript("OnLeave", GameTooltip_Hide);
+	header.Bind:SetScript("OnLeave", GameTooltip_Hide);
 end
 
 local function CreateConfigFrame()
-	frame = CreateFrame("Frame", "GestureCommandsFrame", UIParent, "BasicFrameTemplateWithInset");
+	frame = CreateFrame("Frame", "GestureCommandsFrame", UIParent, "BasicFrameTemplateWithInset, FocusFramesInterfaceTemplate");
 	frame:SetSize(560, 500);
 	frame:SetPoint("CENTER");
 	frame:SetFrameStrata("DIALOG");
@@ -326,9 +333,6 @@ local function CreateConfigFrame()
 	frame:SetScript("OnDragStart", frame.StartMoving);
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing);
 	frame:SetScript("OnShow", function(self)
-		if ns.IsPlacing() then
-			ns.CancelPlacing(true);
-		end
 		Refresh();
 		ns.Nav.Open(self);
 	end);
@@ -415,10 +419,8 @@ local function CreateConfigFrame()
 	frame.New = new;
 	table.insert(navControls, new);
 
-	frame.ControllerHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
-	frame.ControllerHint:SetPoint("BOTTOMLEFT", 16, 40);
-	frame.ControllerHint:SetWidth(230);
-	frame.ControllerHint:SetJustifyH("LEFT");
+	frame.Footer = ns.Nav.CreatePromptFooter(frame);
+	frame.Footer:SetPoint("BOTTOMLEFT", 16, 38);
 
 	-- Editor for the selected gesture
 	local editor = CreateFrame("Frame", nil, frame, "InsetFrameTemplate");
@@ -444,7 +446,7 @@ local function CreateConfigFrame()
 			Refresh();
 		end
 	end);
-	for _, control in ipairs({ editor.Header.IconButton, editor.Header.Edit, editor.Header.Place, slots.trigger, slots.hold, slots.long, editor.Delete }) do
+	for _, control in ipairs({ editor.Header.IconButton, editor.Header.Edit, editor.Header.Bind, slots.trigger, slots.hold, slots.long, editor.Delete }) do
 		table.insert(navControls, control);
 	end
 
@@ -485,16 +487,26 @@ local function CreateConfigFrame()
 		return rows[selected or 0] or new;
 	end
 
+	ns.Nav.SetUpFocusVisuals(frame);
+
+	-- Close while that's still allowed (the Bind button makes the window protected).
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED");
-	frame:RegisterEvent("PLAYER_REGEN_ENABLED");
-	frame:SetScript("OnEvent", Refresh);
+	frame:SetScript("OnEvent", function(self)
+		self:Hide();
+	end);
 end
 
 function ns.ToggleConfig()
-	if not frame then
-		CreateConfigFrame();
+	if frame and frame:IsShown() then
+		frame:Hide();
+	elseif InCombatLockdown() then
+		ns.Print("the window opens out of combat.");
+	else
+		if not frame then
+			CreateConfigFrame();
+		end
+		frame:Show();
 	end
-	frame:SetShown(not frame:IsShown());
 end
 
 function ns.CloseConfig()

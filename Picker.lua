@@ -294,8 +294,8 @@ local function CreateButton(parent, text, width)
 end
 
 local function CreatePicker()
-	picker = CreateFrame("Frame", "GestureCommandsPicker", UIParent, "BasicFrameTemplateWithInset");
-	picker:SetSize(COLUMNS * CELL + 32, 376);
+	picker = CreateFrame("Frame", "GestureCommandsPicker", UIParent, "BasicFrameTemplateWithInset, FocusFramesInterfaceTemplate");
+	picker:SetSize(COLUMNS * CELL + 32, 402);
 	-- Above the setup window (DIALOG), below the controller highlight (FULLSCREEN_DIALOG).
 	picker:SetFrameStrata("FULLSCREEN");
 	picker:SetClampedToScreen(true);
@@ -403,6 +403,10 @@ local function CreatePicker()
 	picker.PageText = picker:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall");
 	picker.PageText:SetPoint("TOP", 0, pagerY - 5);
 
+	picker.Footer = ns.Nav.CreatePromptFooter(picker);
+	picker.Footer:SetPoint("BOTTOMLEFT", 18, 42);
+	picker.Footer:SetPrompts({ { GAMEPAD_FACE_BOTTOM, "Choose" }, { GAMEPAD_FACE_RIGHT, "Back" } });
+
 	-- Bottom buttons
 	picker.Okay = CreateButton(picker, "OK", 90);
 	picker.Okay:SetPoint("BOTTOMLEFT", 16, 12);
@@ -452,8 +456,10 @@ local function CreatePicker()
 	end
 	picker:SetScript("OnShow", function(self)
 		self.navCurrent = nil;
+		self.Footer:SetShown(ns.Nav.UsesGamepadUI() or ns.Nav.UsesOwnNavigation());
 		ns.Nav.Open(self, true);
 	end);
+	ns.Nav.SetUpFocusVisuals(picker);
 	picker:SetScript("OnHide", function(self)
 		self.NameBox:ClearFocus();
 		ns.Nav.Close(self);
