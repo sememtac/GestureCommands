@@ -41,8 +41,8 @@ local function Refresh()
 			local holdName = ns.GetActionDisplay(gesture.hold);
 			local longName = ns.GetActionDisplay(gesture.long);
 			row.Icon:SetTexture(ns.GetGestureIcon(gesture));
-			row.Text:SetText(("%s\n|cff999999%s / %s|r"):format(gesture.trigger and ns.GetGestureName(gesture) or "(new gesture)",
-				holdName or "-", longName or "-"));
+			row.Text:SetText(gesture.trigger and ns.GetGestureName(gesture) or "(new gesture)");
+			row.Detail:SetText(("%s / %s"):format(holdName or "-", longName or "-"));
 			row.Selected:SetShown(index == selected);
 			row.Conflict:SetShown(ns.conflicts and ns.conflicts[index] ~= nil);
 			row:Show();
@@ -81,7 +81,7 @@ local function Refresh()
 	if InCombatLockdown() then
 		status = "|cffff6060Editing is locked in combat.|r";
 	elseif ns.IsTotemCommandsActive() then
-		status = "|cffff6060Totem Commands is on and uses the same buttons: type /totemcommands off.|r";
+		status = "|cffff6060Totem Commands is on and uses the same buttons.|r";
 	elseif ns.conflicts and next(ns.conflicts) then
 		status = "|cffffd100Two gestures have the same Tap; only the later one is used.|r";
 	elseif db.enabled == false then
@@ -90,6 +90,7 @@ local function Refresh()
 		status = "|cff33ff99On.|r Press Test to check your setup.";
 	end
 	statusText:SetText(status);
+	frame.SwitchTotem:SetShown(ns.IsTotemCommandsActive() and not InCombatLockdown());
 	local ownNavigation = ns.Nav.UsesOwnNavigation();
 	frame.Footer:SetShown(ownNavigation or ns.Nav.UsesGamepadUI());
 	if ownNavigation then
@@ -419,11 +420,17 @@ local function CreateConfigFrame()
 		row.Icon = row:CreateTexture(nil, "ARTWORK");
 		row.Icon:SetSize(24, 24);
 		row.Icon:SetPoint("LEFT", 2, 0);
+		-- Name, and the Hold / Long hold actions below it.
 		row.Text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall");
-		row.Text:SetPoint("LEFT", row.Icon, "RIGHT", 6, 0);
+		row.Text:SetPoint("TOPLEFT", row.Icon, "TOPRIGHT", 6, 0);
 		row.Text:SetPoint("RIGHT", -16, 0);
 		row.Text:SetJustifyH("LEFT");
 		row.Text:SetWordWrap(false);
+		row.Detail = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
+		row.Detail:SetPoint("BOTTOMLEFT", row.Icon, "BOTTOMRIGHT", 6, 0);
+		row.Detail:SetPoint("RIGHT", -16, 0);
+		row.Detail:SetJustifyH("LEFT");
+		row.Detail:SetWordWrap(false);
 		row.Selected = row:CreateTexture(nil, "BACKGROUND");
 		row.Selected:SetAllPoints();
 		row.Selected:SetColorTexture(1, 0.82, 0, 0.18);
@@ -444,6 +451,7 @@ local function CreateConfigFrame()
 		row:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 			GameTooltip:SetText(self.Text:GetText() or "");
+			GameTooltip:AddLine("Hold / Long hold: " .. (self.Detail:GetText() or ""), 0.6, 0.6, 0.6, true);
 			GameTooltip:AddLine("Click (A) to edit. Drag onto your crossbar to place this gesture.", 1, 1, 1, true);
 			GameTooltip:Show();
 		end);
@@ -529,6 +537,28 @@ local function CreateConfigFrame()
 	statusText:SetPoint("BOTTOMLEFT", 16, 12);
 	statusText:SetPoint("BOTTOMRIGHT", -16, 12);
 	statusText:SetJustifyH("LEFT");
+
+	-- Shown while Totem Commands (which this grew out of) is on: move its gesture over and turn it off.
+	frame.SwitchTotem = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate");
+	frame.SwitchTotem:SetSize(190, 22);
+	frame.SwitchTotem:SetPoint("BOTTOMRIGHT", -14, 8);
+	frame.SwitchTotem:SetText("Switch from Totem Commands");
+	frame.SwitchTotem:SetScript("OnClick", function()
+		local index = ns.SwitchFromTotemCommands();
+		if index then
+			selected = index;
+			Refresh();
+		end
+	end);
+	frame.SwitchTotem:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+		GameTooltip:SetText("Switch from Totem Commands");
+		GameTooltip:AddLine("Sets up the same totem gesture here (Tap Call of the Elements, Hold Totemic Recall, Long hold Totemic Call) with your hold lengths, and turns Totem Commands off.", 1, 1, 1, true);
+		GameTooltip:Show();
+	end);
+	frame.SwitchTotem:SetScript("OnLeave", GameTooltip_Hide);
+	frame.SwitchTotem:Hide();
+	table.insert(navControls, frame.SwitchTotem);
 
 	-- Controller navigation
 	function frame:GetNavControls()

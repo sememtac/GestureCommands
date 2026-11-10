@@ -8,7 +8,7 @@ crossbar button, and when you press that button:
 | You do | You feel / see | On release |
 |---|---|---|
 | **Tap** | nothing | the slot does what it normally does |
-| **Hold** (~0.5 s) | a rumble, "Release for …" | casts your **Hold** action |
+| **Hold** (~0.6 s) | a rumble, "Release for …" | casts your **Hold** action |
 | **Keep holding** (~1.4 s) | a double rumble, "Release for …" | casts your **Long hold** action |
 
 Hold actions can be **spells, items, toys, mounts or macros**. Nothing is cast until you let go, so you can
@@ -37,8 +37,7 @@ icon and cooldown, and every other button works exactly as before.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
 Gesture Commands doesn't create macros. Any crossbar slot that holds the gesture's Tap - the spell or item,
-or your macro - is the gesture, however it got there, and shows the gesture's icon if you chose one. Versions before 0.10 made a macro for
-each gesture; those are removed automatically (slots that held one get the Tap itself), unless you edited
+or your macro - is the gesture, however it got there, and shows the gesture's name and icon if you chose
 them.
 
 ### With a controller
@@ -49,8 +48,8 @@ the windows, the D-pad moves between buttons, **A** selects and **B** goes back 
 panels, the window shows the LT / RT / View glyphs and a focus glow, and button prompts at the bottom.
 Selecting a box opens a list of your spells, items, mounts and macros, so no mouse is needed; **Clear** in
 that list empties the box. **Bind** closes the window and takes the next crossbar button you press (if
-another window is still open, press View first). Naming a gesture needs a keyboard (the game has no on-screen keyboard); it starts with the Tap
-spell's name, so you only need to type if you want a different one.
+another window is still open, press View first). Naming a gesture needs a keyboard (the game has no
+on-screen keyboard); it starts with the Tap action's name, so you only need to type for a different one.
 
 The window closes when you enter combat (editing is locked in combat anyway).
 
@@ -84,7 +83,9 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.
 - Gestures can only be edited out of combat; using them works in combat.
-- If you use **Totem Commands**, turn it off (`/totemcommands off`): both work on the same buttons.
+- **Coming from Totem Commands?** Open the window and press **Switch from Totem Commands**: it sets up the
+  same totem gesture (Tap Call of the Elements, Hold Totemic Recall, Long hold Totemic Call) with your hold
+  lengths and turns Totem Commands off. The two can't run together - they use the same buttons.
 
 ## How it works
 

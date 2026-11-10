@@ -469,6 +469,24 @@ local function IsTotemCommandsActive()
 end
 ns.IsTotemCommandsActive = IsTotemCommandsActive;
 
+-- Totem Commands, the shaman-only addon Gesture Commands grew out of, is one fixed gesture. Switching moves
+-- it over: that gesture (unless there already is one on Call of the Elements), its hold lengths, and Totem
+-- Commands turned off through its own command. Spells by name for the rank the character knows, with the
+-- IDs for other languages.
+local TOTEM_SPELLS = {
+	trigger = { 66842, "Call of the Elements" },
+	hold = { 36936, "Totemic Recall" },
+	long = { 437009, "Totemic Call" },
+};
+
+local function GetTotemSpell(mode)
+	local id, name = TOTEM_SPELLS[mode][1], TOTEM_SPELLS[mode][2];
+	local info = C_Spell.GetSpellInfo(name);
+	id = info and info.spellID or id;
+	name = C_Spell.GetSpellName(id) or name;
+	return { kind = "spell", id = id, name = name };
+end
+
 -------------------------------------------------------------------------------
 -- Publishing: configuration -> secure header attributes (out of combat only)
 -------------------------------------------------------------------------------
@@ -780,6 +798,38 @@ local function RemoveOldGestureMacros()
 			removed, removed == 1 and "" or "s"));
 	end
 	return true;
+end
+
+function ns.SwitchFromTotemCommands()
+	if InCombatLockdown() then
+		Print("can't switch in combat.");
+		return false;
+	end
+	local trigger = GetTotemSpell("trigger");
+	local index;
+	for existing, gesture in ipairs(DB().gestures) do
+		local shown = ResolveTrigger(gesture.trigger);
+		if shown and shown.kind == "spell" and C_Spell.GetSpellName(shown.id) == trigger.name then
+			index = existing;
+		end
+	end
+	if not index then
+		table.insert(DB().gestures, { trigger = trigger, hold = GetTotemSpell("hold"), long = GetTotemSpell("long") });
+		index = #DB().gestures;
+	end
+	local totemDB = TotemCommandsDB;
+	if totemDB then
+		DB().holdTicks = DB().holdTicks or totemDB.holdTicks;
+		DB().hold2Ticks = DB().hold2Ticks or totemDB.hold2Ticks;
+	end
+	if SlashCmdList.TOTEMCOMMANDS then
+		SlashCmdList.TOTEMCOMMANDS("off");
+	end
+	DB().enabled = true;
+	Publish();
+	Print(IsTotemCommandsActive() and "couldn't turn Totem Commands off - type /totemcommands off."
+		or "switched: your totem gesture is set up here, and Totem Commands is off (you can remove it).");
+	return index;
 end
 
 -------------------------------------------------------------------------------

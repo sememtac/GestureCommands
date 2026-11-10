@@ -1,23 +1,20 @@
 # Gesture Commands
 
-## Unreleased
+## 1.0.0
 
 First release.
 
-- Tap, hold and long-hold gestures for anything on the gamepad crossbar: a gesture attaches to a spell or
-  item on a crossbar slot (or a macro that shows one); a tap does what the slot normally does, a hold and
-  a longer hold cast what you assign.
-- Hold actions can be spells, items, toys, mounts or macros.
-- The Tap can be a spell, an item, or one of your macros that shows one; the gesture is whatever crossbar
-  slot holds it. Gesture Commands creates no macros (and removes the ones versions before 0.10 made).
-  Optional name and icon, shown on the crossbar buttons that hold the gesture's Tap.
-- Setup window (the gamepad main menu dial, minimap button, the minimap's addons menu, `/gestures`, or
-  Options > AddOns): choose actions from your spells, items, mounts and
-  macros (or drag them in), hold timing; **Bind** puts a gesture on the next crossbar button you press
-  (or drag it onto the crossbar).
-- Full controller support in the setup window, through the game's controller navigation like Blizzard's
-  own windows (LT / RT, View, A, B), using only the calls Blizzard provides for addons, so it doesn't
-  taint the crossbar, with the game's LT / RT / View jump hints, focus glow and button prompts.
-  `/gestures padnav own` switches to the window's own D-pad navigation instead.
+- Tap, hold and long-hold gestures for the gamepad crossbar: a gesture gives one crossbar button three
+  actions. A tap does what the slot normally does; a hold and a longer hold cast what you choose, with a
+  rumble and an on-screen hint as each stage arms. Nothing is cast until you let go.
+- The Tap is a spell, an item, or one of your macros that shows one; any crossbar slot that holds it is the
+  gesture. Hold actions can be spells, items, toys, mounts or macros. Gesture Commands creates no macros.
+- Optional name and icon for each gesture, shown on the crossbar buttons that hold its Tap.
+- Setup window, fully usable with a controller through the game's own controller navigation (LT / RT,
+  View, A, B, with the game's button prompts and focus glow): choose actions from your spells, items,
+  mounts and macros, and **Bind** a gesture to the next crossbar button you press.
+- Open it from the gamepad main menu dial, the minimap button, the minimap's addons menu, a key binding,
+  Options > AddOns, or `/gestures`.
+- Coming from Totem Commands: **Switch from Totem Commands** sets up the same totem gesture and turns
+  Totem Commands off.
 - `/gestures on|off|test|debug|hold <n>|hold2 <n>|minimap|padnav own|blizzard`.
-- Addon icon; a key binding to open the setup window.
