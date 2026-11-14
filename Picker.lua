@@ -26,7 +26,7 @@ local SOURCES = {
 	},
 };
 local ACTION_HINTS = {
-	trigger = "A tap does this. Pick a spell, a usable item, or one of your macros that shows a spell or item.",
+	trigger = "A tap does this, and it's what goes on the crossbar.",
 	hold = "Cast when you hold the button.",
 	long = "Cast when you keep holding the button.",
 };

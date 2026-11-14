@@ -23,8 +23,7 @@ icon and cooldown, and every other button works exactly as before.
    Options > AddOns > Gesture Commands, or set a key for it in Options > Keybindings > AddOns.
 2. **New gesture**, then fill the three boxes - click a box to choose from your spells, items, mounts and
    macros, or drag something onto it:
-   - **Tap**: a spell, an item, or one of your macros that shows a spell or item (`#showtooltip`). A tap casts
-     or runs it, and it's what goes on the crossbar.
+   - **Tap**: a spell, item, toy, mount or macro. A tap casts or uses it, and it's what goes on the crossbar.
    - **Hold** and **Long hold**: whatever you want those to cast.
 3. Optional: **Name & icon** (or click the gesture's icon). Both show on the crossbar buttons that hold the
    gesture's Tap - the name as the button's text line, like a macro's (cooldowns and range / mana colouring

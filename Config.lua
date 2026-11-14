@@ -12,7 +12,7 @@ local _, ns = ...;
 local MAX_ROWS = 10;
 local SLOT_SIZE = 40;
 local SLOT_HINTS = {
-	trigger = "What a tap does, and what you put on the crossbar: a spell, an item, or one of your macros that shows a spell or item (#showtooltip).",
+	trigger = "What a tap does, and what you put on the crossbar: a spell, item, toy, mount or macro.",
 	hold = "Cast when you hold the button (about 0.5 s): a spell, item, toy, mount or macro.",
 	long = "Cast when you keep holding the button (about 1.4 s): a spell, item, toy, mount or macro.",
 };
@@ -129,7 +129,7 @@ local function AssignAction(mode, action)
 	if action and mode == "trigger" then
 		local trigger = ns.MakeTrigger(action);
 		if not trigger then
-			ns.Print("Tap must be a spell, an item, or a macro that shows one (#showtooltip).");
+			ns.Print("Tap can be a spell, item, toy, mount or macro.");
 			return false;
 		end
 		action = trigger;

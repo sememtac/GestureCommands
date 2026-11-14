@@ -60,6 +60,23 @@ header:SetAttribute("_onstate-tick", [[
 -- Runs before Blizzard's OnClick on every wrapped crossbar button. Triggers are looked up by what the slot
 -- shows: "g:spell:<id>" / "g:item:<id>" hold the gesture number (a macro counts as the spell/item it shows).
 local PRE_CLICK = [[
+	-- The gesture a slot holds: by its number (a mount, toy or macro Tap), else by what it shows (a spell or
+	-- item; a macro counts as what it shows).
+	local function GestureAt(slot)
+		local gesture = control:GetAttribute("g:slot:" .. slot);
+		if gesture then
+			return gesture;
+		end
+		local kind, id, subType = GetActionInfo(slot);
+		if kind == "macro" then
+			kind = subType;
+		end
+		if (kind == "spell" or kind == "item") and id then
+			return control:GetAttribute("g:" .. kind .. ":" .. id);
+		end
+		return nil;
+	end
+
 	-- Place mode: the next crossbar press only says where to put a gesture. Not in combat: there every press
 	-- does its action, and the gesture waits for a press after the fight.
 	if control:GetAttribute("placing") and SecureCmdOptionParse("[combat] 1; 0") ~= "1" then
@@ -87,14 +104,7 @@ local PRE_CLICK = [[
 		if slot <= 0 then
 			return;
 		end
-		local kind, id, subType = GetActionInfo(slot);
-		if kind == "macro" then
-			kind = subType;
-		end
-		if (kind ~= "spell" and kind ~= "item") or not id then
-			return;
-		end
-		local gesture = control:GetAttribute("g:" .. kind .. ":" .. id);
+		local gesture = GestureAt(slot);
 		if not gesture then
 			return;
 		end
@@ -123,12 +133,8 @@ local PRE_CLICK = [[
 	end
 	pressedSlot = nil;
 
-	-- The slot must still hold this gesture's trigger.
-	local kind, id, subType = GetActionInfo(slot);
-	if kind == "macro" then
-		kind = subType;
-	end
-	if not kind or not id or control:GetAttribute("g:" .. kind .. ":" .. id) ~= gesture then
+	-- The slot must still hold this gesture's Tap.
+	if GestureAt(slot) ~= gesture then
 		return false;
 	end
 
@@ -252,15 +258,47 @@ local function ResolveTrigger(trigger)
 	return nil;
 end
 
--- A dropped action as a Tap, or nil if it can't be one. A toy counts as its item; a macro stays a macro, so
--- binding the gesture puts the macro itself on the crossbar and a tap runs it.
+-- A dropped action as a Tap, or nil if it can't be one: a spell, item, toy, mount or any macro. Binding the
+-- gesture puts that action itself on the crossbar, and a tap does what it does.
+local TRIGGER_KINDS = { spell = true, item = true, toy = true, mount = true, macro = true };
+
 local function MakeTrigger(action)
-	if action and action.kind == "toy" then
-		return { kind = "item", id = action.id, name = action.name };
-	end
-	return ResolveTrigger(action) and action or nil;
+	return action and TRIGGER_KINDS[action.kind] and action or nil;
 end
 ns.MakeTrigger = MakeTrigger;
+
+local function GetSlotActionText(slot)
+	return (C_ActionBar.GetActionText or GetActionText)(slot);
+end
+
+-- Whether the Tap can still be put on the crossbar (a macro or mount may have gone since it was chosen).
+local function IsTriggerAvailable(trigger)
+	if trigger.kind == "macro" then
+		local index = GetMacroIndexByName(trigger.name);
+		return index ~= nil and index > 0;
+	elseif trigger.kind == "mount" then
+		return (C_MountJournal.GetMountInfoByID(trigger.id)) ~= nil;
+	elseif trigger.kind == "toy" then
+		return not PlayerHasToy or PlayerHasToy(trigger.id);
+	end
+	return true;
+end
+
+-- Whether an action slot holds a toy, mount or macro Tap (out of combat). The secure code can't tell: the
+-- game hides mount and toy IDs from it, and a macro shows only the spell or item it casts, if any.
+local function SlotHoldsTrigger(slot, trigger, mountSpellID)
+	local kind, id = GetActionInfo(slot);
+	if not kind then
+		return false;
+	elseif trigger.kind == "macro" then
+		return kind == "macro" and GetSlotActionText(slot) == trigger.name;
+	elseif trigger.kind == "mount" then
+		return (kind == "summonmount" and id == trigger.id) or (mountSpellID ~= nil and kind == "spell" and id == mountSpellID);
+	elseif trigger.kind == "toy" then
+		return (kind == "item" or kind == "toy") and id == trigger.id;
+	end
+	return false;
+end
 
 -- How the secure code casts an action: SecureActionButton type, the attribute it reads, and the value.
 local function GetCastSpec(action)
@@ -287,8 +325,17 @@ end
 -- showing a spell with the trigger's name counts, as do the trigger's own ID and the highest known rank.
 local function GetTriggerKeys(trigger)
 	local keys = {};
-	trigger = ResolveTrigger(trigger);
-	if not trigger then
+	if trigger.kind == "macro" or trigger.kind == "mount" or trigger.kind == "toy" then
+		-- Published by slot number: every action slot that holds it (if it still exists).
+		if not IsTriggerAvailable(trigger) then
+			return keys;
+		end
+		local mountSpellID = trigger.kind == "mount" and select(2, C_MountJournal.GetMountInfoByID(trigger.id)) or nil;
+		for slot = 1, MAX_ACTION_SLOT do
+			if SlotHoldsTrigger(slot, trigger, mountSpellID) then
+				keys["slot:" .. slot] = true;
+			end
+		end
 		return keys;
 	elseif trigger.kind == "item" then
 		keys["item:" .. trigger.id] = true;
@@ -382,11 +429,14 @@ local function GetButtonSlot(button)
 end
 
 local function GetSlotGesture(slot)
-	local kind, id, subType = GetActionInfo(slot);
-	if kind == "macro" then
-		kind = subType;
+	local index = gestureKeyOwners["slot:" .. slot];
+	if not index then
+		local kind, id, subType = GetActionInfo(slot);
+		if kind == "macro" then
+			kind = subType;
+		end
+		index = kind and id and gestureKeyOwners[kind .. ":" .. id];
 	end
-	local index = kind and id and gestureKeyOwners[kind .. ":" .. id];
 	return index and DB().gestures[index];
 end
 
@@ -683,7 +733,7 @@ function ns.StartPlacing(index)
 		Print("choose this gesture's Tap first.");
 		return false;
 	end
-	if not ResolveTrigger(gesture.trigger) then
+	if not IsTriggerAvailable(gesture.trigger) then
 		Print(("this gesture's Tap (%s) isn't available any more - choose it again."):format(tostring(GetActionDisplay(gesture.trigger))));
 		return false;
 	end
@@ -751,6 +801,22 @@ function ns.PickupGesture(index)
 			return false;
 		end
 		PickupMacro(macroIndex);
+	elseif trigger.kind == "toy" then
+		C_ToyBox.PickupToyBoxItem(trigger.id);
+	elseif trigger.kind == "mount" then
+		-- The mount journal picks up by list position; the mount's spell if it's filtered out of the list.
+		local picked = false;
+		for index = 1, C_MountJournal.GetNumDisplayedMounts and C_MountJournal.GetNumDisplayedMounts() or 0 do
+			if C_MountJournal.GetDisplayedMountID(index) == trigger.id then
+				C_MountJournal.Pickup(index);
+				picked = true;
+				break;
+			end
+		end
+		local _, spellID = C_MountJournal.GetMountInfoByID(trigger.id);
+		if not picked and spellID then
+			C_Spell.PickupSpell(spellID);
+		end
 	elseif trigger.kind == "item" then
 		C_Item.PickupItem(trigger.id);
 	else
@@ -783,7 +849,7 @@ local function RemoveOldGestureMacros()
 				or ("/cast " .. (C_Spell.GetSpellName(trigger.id) or trigger.name or ""));
 			if body and strtrim(body) == madeBody then
 				for slot = 1, MAX_ACTION_SLOT do
-					if GetActionInfo(slot) == "macro" and GetActionText(slot) == name and ns.PickupGesture(index) then
+					if GetActionInfo(slot) == "macro" and GetSlotActionText(slot) == name and ns.PickupGesture(index) then
 						(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
 						ClearCursor();
 					end
@@ -910,11 +976,12 @@ function ns.RunTest()
 		if gesture.trigger then
 			local keys = GetTriggerKeys(gesture.trigger);
 			for _, info in ipairs(GetCrossbarButtons()) do
-				local kind, id, subType = GetActionInfo(info.button:GetID());
+				local slot = info.button:GetID();
+				local kind, id, subType = GetActionInfo(slot);
 				if kind == "macro" then
 					kind = subType;
 				end
-				if kind and id and keys[kind .. ":" .. id] then
+				if keys["slot:" .. slot] or (kind and id and keys[kind .. ":" .. id]) then
 					slots = slots + 1;
 				end
 			end
@@ -941,6 +1008,7 @@ frame:RegisterEvent("PLAYER_REGEN_ENABLED");
 frame:RegisterEvent("SPELLS_CHANGED");
 frame:RegisterEvent("UPDATE_SHAPESHIFT_FORMS");
 frame:RegisterEvent("ACTIONBAR_SLOT_CHANGED");
+frame:RegisterEvent("UPDATE_MACROS");
 -- The "blocked from an action" dialog doesn't say which function; report it so problems can be traced.
 frame:RegisterEvent("ADDON_ACTION_FORBIDDEN");
 frame:RegisterEvent("ADDON_ACTION_BLOCKED");

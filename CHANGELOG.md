@@ -1,5 +1,10 @@
 # Gesture Commands
 
+## 1.0.1
+
+- The Tap can be any spell, item, toy, mount or macro. Before, it had to be a spell, an item, or a macro
+  that shows one.
+
 ## 1.0.0
 
 Initial release.
