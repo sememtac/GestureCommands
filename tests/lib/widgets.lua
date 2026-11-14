@@ -118,6 +118,7 @@ function Button:UnlockHighlight() self.locked = false end
 function Button:SetText(t) self.text = t end
 function Button:GetText() return self.text end
 function Button:Click(mouseButton)
+	if not self.enabled then return end -- a disabled button doesn't click, as in the game
 	if self.kind == "CheckButton" then self.checked = not self.checked end
 	if self.scripts.OnClick then self.scripts.OnClick(self, mouseButton or "LeftButton", false) end
 end
@@ -168,7 +169,18 @@ function W.CreateFrame(kind, name, parent, template)
 	local f = new(kind, parent, class)
 	f.name, f.template = name, template
 	if template and (template:find("SecureHandler") or template:find("SecureActionButton")) then f.protected = true end
-	if hasTemplate(template, "BasicFrameTemplateWithInset") then f.CloseButton = W.CreateFrame("Button", nil, f) end
+	if hasTemplate(template, "BasicFrameTemplateWithInset") then
+		-- UIPanelCloseButton_OnClick -> HideUIPanel, which refuses addon (insecure) code in combat with
+		-- "Interface action failed" (UIParentPanelManager.lua's CheckProtectedFunctionsAllowed).
+		f.CloseButton = W.CreateFrame("Button", nil, f)
+		f.CloseButton.scripts.OnClick = function(self)
+			if world.inCombat() then
+				W.blockedMessages = (W.blockedMessages or 0) + 1
+				return
+			end
+			self.parent:Hide()
+		end
+	end
 	if hasTemplate(template, "FocusFramesInterfaceTemplate") then
 		for _, key in ipairs({ "LeftJumpHint", "RightJumpHint", "FocusJumpHint" }) do
 			f[key] = W.CreateFrame("Frame", nil, f, "InputIconTextureFrameTemplate")

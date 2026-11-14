@@ -359,6 +359,35 @@ fire("PLAYER_REGEN_ENABLED")
 check(not bound(), "closed in combat: the D-pad stays the crossbar's after combat")
 frame:Show()
 
+-- The X buttons close the picker and the window in combat too.
+click("Name & icon")
+world.combat = true
+picker.CloseButton:Click()
+check(not picker:IsShown() and frame:IsShown(), "X closes the picker in combat too")
+frame.CloseButton:Click()
+check(not frame:IsShown() and not W.blockedMessages, "X closes the window in combat too (no \"Interface action failed\")")
+world.combat = false
+frame:Show()
+
+-- The picker closes when another gesture is selected or this one is deleted, so it can't edit the wrong one.
+click("New gesture")
+local listRows = {}; for _, f in ipairs(W.frames) do if rawget(f, "Detail") then listRows[#listRows + 1] = f end end
+slots.trigger:Click("LeftButton")
+check(picker:IsShown(), "picker open for the new gesture's Tap")
+listRows[1]:Click()
+check(not picker:IsShown(), "selecting another gesture closes the picker")
+listRows[2]:Click()
+slots.trigger:Click("LeftButton")
+click("Delete gesture")
+check(not picker:IsShown() and #db.gestures == 1, "deleting the gesture closes the picker")
+
+-- The list shows 10 gestures; New stops there.
+for _ = #db.gestures + 1, 11 do click("New gesture") end
+check(#db.gestures == 10 and not frame.New.enabled, "New is off at 10 gestures")
+for index = #db.gestures, 2, -1 do ns.RemoveGesture(index) end
+check(frame.New.enabled, "...and on again below that")
+listRows[1]:Click()
+
 -- Delete, enable, ticks, test.
 click("Delete gesture")
 check(#db.gestures == 0 and not frame.Editor.Header.shown, "Delete removes the gesture")

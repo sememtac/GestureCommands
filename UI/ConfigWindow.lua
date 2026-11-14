@@ -50,7 +50,8 @@ local function Refresh()
 			row:Hide();
 		end
 	end
-	frame.TooMany:SetShown(#gestures > MAX_ROWS);
+	frame.TooMany:SetShown(#gestures >= MAX_ROWS);
+	frame.New:SetEnabled(#gestures < MAX_ROWS);
 
 	local gesture = selected and gestures[selected];
 	local editor = frame.Editor;
@@ -344,6 +345,10 @@ local function CreateConfigFrame()
 		ns.ClosePicker();
 		ns.Nav.Close(self);
 	end);
+	-- The X: hide it ourselves. The template's goes through HideUIPanel, which refuses addon code in combat.
+	frame.CloseButton:SetScript("OnClick", function()
+		frame:Hide();
+	end);
 	-- Controller B: close it ourselves. Without this, Blizzard's gamepad UI would press the close button,
 	-- running its panel manager from our frame.
 	function frame:SmartNavigationCloseHandler()
@@ -390,12 +395,15 @@ local function CreateConfigFrame()
 		row.Conflict:SetPoint("RIGHT", -2, 0);
 		row.Conflict:SetText("!");
 		row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD");
+		-- Selecting another gesture closes the picker, which edits the selected one.
 		row:SetScript("OnClick", function()
+			ns.ClosePicker();
 			selected = index;
 			Refresh();
 		end);
 		row:RegisterForDrag("LeftButton");
 		row:SetScript("OnDragStart", function()
+			ns.ClosePicker();
 			selected = index;
 			Refresh();
 			ns.PickupGesture(index);
@@ -413,7 +421,7 @@ local function CreateConfigFrame()
 	end
 	frame.TooMany = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall");
 	frame.TooMany:SetPoint("TOPLEFT", 16, -62 - MAX_ROWS * 30);
-	frame.TooMany:SetText(("Only the first %d gestures are shown."):format(MAX_ROWS));
+	frame.TooMany:SetText(("The list holds %d gestures."):format(MAX_ROWS));
 
 	local new = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate");
 	new:SetSize(110, 22);
@@ -453,6 +461,7 @@ local function CreateConfigFrame()
 	editor.Delete:SetText("Delete gesture");
 	editor.Delete:SetScript("OnClick", function()
 		if CanEdit() and selected then
+			ns.ClosePicker();
 			ns.RemoveGesture(selected);
 			Refresh();
 		end

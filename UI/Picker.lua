@@ -298,6 +298,10 @@ local function CreatePicker()
 	picker:SetSize(COLUMNS * CELL + 32, 402);
 	-- Above the setup window (DIALOG), below the controller highlight (FULLSCREEN_DIALOG).
 	picker:SetFrameStrata("FULLSCREEN");
+	-- The X: hide it ourselves. The template's goes through HideUIPanel, which refuses addon code in combat.
+	picker.CloseButton:SetScript("OnClick", function()
+		picker:Hide();
+	end);
 	picker:SetClampedToScreen(true);
 	picker:EnableMouse(true);
 	picker:Hide();
