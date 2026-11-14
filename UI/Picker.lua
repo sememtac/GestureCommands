@@ -272,7 +272,12 @@ end
 
 local function Save()
 	if state.mode == "icon" and ns.CanEdit() then
-		ns.SetGestureNameIcon(state.gestureIndex, picker.NameBox:GetText(), GetIconForSaving(state.chosenIcon));
+		local name = picker.NameBox:GetText();
+		-- The Tap's name, unchanged: stay automatic, so it follows the Tap.
+		if name == state.automaticName then
+			name = "";
+		end
+		ns.SetGestureNameIcon(state.gestureIndex, name, GetIconForSaving(state.chosenIcon));
 	end
 	picker:Hide();
 end
@@ -492,10 +497,12 @@ function ns.OpenIconPicker(anchor, gestureIndex)
 	if not gesture then
 		return;
 	end
-	state = { mode = "icon", gestureIndex = gestureIndex, chosenIcon = gesture.icon or QUESTION_MARK_ICON };
+	local name = ns.GetGestureName(gesture);
+	state = { mode = "icon", gestureIndex = gestureIndex, chosenIcon = gesture.icon or QUESTION_MARK_ICON,
+		automaticName = not (gesture.name and gesture.name ~= "") and name or nil };
 	Open(anchor, "icon");
 	picker.Title:SetText("Name & icon");
-	picker.NameBox:SetText(ns.GetGestureName(gesture));
+	picker.NameBox:SetText(name);
 	UpdatePreview();
 end
 
