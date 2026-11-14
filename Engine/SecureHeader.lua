@@ -93,6 +93,7 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 			return;
 		end
 		pressedSlot = slot;
+		pressedPosition = control:GetAttribute("pos:" .. slot);
 		pressedGesture = gesture;
 		ticks = 0;
 		armed = 0;
@@ -105,13 +106,18 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 	if not pressedSlot then
 		return;
 	end
+	if pressedSlot ~= slot and control:GetAttribute("pos:" .. slot) ~= pressedPosition then
+		-- Another crossbar button released while the gesture is held: not ours.
+		return;
+	end
 	local stage = armed or 0;
 	local gesture = pressedGesture;
 	armed = 0;
 	pressedGesture = nil;
 	control:SetAttribute("armed", 0);
 	if pressedSlot ~= slot then
-		-- The crossbar page changed mid-hold, so this button now holds something else: drop the press.
+		-- The crossbar page changed mid-hold: the release arrives at the button now in the pressed one's
+		-- place, which holds something else. Drop the press.
 		pressedSlot = nil;
 		return;
 	end
@@ -166,9 +172,12 @@ local POST_CLICK = ns.Snippet("OnClick-post", [[
 local wrapped = {}; -- crossbar button -> true once its OnClick is wrapped
 ns.wrapped = wrapped;
 
--- Wraps every crossbar button not wrapped yet (out of combat).
+-- Wraps every crossbar button not wrapped yet (out of combat). "pos:<slot>" is the button's place on its
+-- bar, the same physical button on every crossbar page, so the secure code can tell a release after a page
+-- change from another button's release.
 function Engine.WrapCrossbarButtons()
 	for _, info in ipairs(ns.GetCrossbarButtons()) do
+		header:SetAttribute("pos:" .. info.button:GetID(), info.index);
 		if not wrapped[info.button] then
 			local ok, err = pcall(SecureHandlerWrapScript, info.button, "OnClick", header, PRE_CLICK, POST_CLICK);
 			if ok then

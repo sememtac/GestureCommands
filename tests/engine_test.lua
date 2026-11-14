@@ -151,6 +151,25 @@ world.casts = {}
 press(B[5], 4)
 check(#world.casts == 1 and last() == "slot:spell:331", "slot without a gesture: normal cast on press")
 
+-- Another crossbar button pressed and released during a hold: it does its own action, and the hold goes on.
+world.casts = {}
+click(B[1], "LeftButton", true)
+for _ = 1, 2 do tick(); poll() end
+click(B[5], "LeftButton", true); click(B[5], "LeftButton", false)
+for _ = 1, 2 do tick(); poll() end
+click(B[1], "LeftButton", false); poll()
+check(world.casts[1] == "slot:spell:331" and world.casts[2] == "spell:Totemic Recall", "another button mid-hold: it casts, and the hold still casts")
+-- The crossbar page changes mid-hold: the release arrives at the button now in the pressed one's place.
+local samePlace = bars.rightBar.buttons[1]
+check(header.attrs["pos:" .. B[1].id] == 1 and header.attrs["pos:" .. samePlace.id] == 1, "crossbar positions published")
+world.casts = {}
+click(B[1], "LeftButton", true)
+for _ = 1, 4 do tick(); poll() end
+click(samePlace, "LeftButton", false); poll()
+check(#world.casts == 0 and header.attrs.armed == 0, "page changed mid-hold: the press is dropped")
+press(B[1], 1)
+check(last() == "slot:spell:66842", "...and the next tap works")
+
 -- Only a long hold: short holds stay taps.
 call(ns.SetGestureAction, stone, "hold", nil)
 call(ns.SetGestureAction, stone, "long", { kind = "spell", id = 331 })
