@@ -12,20 +12,18 @@
 
 local ADDON_NAME, ns = ...;
 
-local DEFAULT_HOLD_TICKS, DEFAULT_HOLD2_TICKS = 3, 7;
 local MIN_HOLD_TICKS, MAX_HOLD_TICKS, MAX_HOLD2_TICKS = 2, 6, 12;
 local RUMBLE_INTENSITY, RUMBLE_TIME, DOUBLE_RUMBLE_GAP = 0.5, 0.15, 0.25;
 local MAX_ACTION_SLOT = 400; -- Covers the keyboard bars and the gamepad action storage (181+).
-local MODES = { "hold", "long" };
-
-ns.MODES = MODES;
-ns.MODE_LABELS = { trigger = "Tap", hold = "Hold", long = "Long hold" };
+local MODES = ns.MODES;
+local Print, DB = ns.Print, ns.DB;
+local GetHoldTicks, GetHold2Ticks = ns.GetHoldTicks, ns.GetHold2Ticks;
 
 local header = CreateFrame("Frame", "GestureCommandsHeader", UIParent, "SecureHandlerStateTemplate");
 header:SetAttribute("enabled", false);
 header:SetAttribute("armed", 0);
-header:SetAttribute("holdTicks", DEFAULT_HOLD_TICKS);
-header:SetAttribute("hold2Ticks", DEFAULT_HOLD2_TICKS);
+header:SetAttribute("holdTicks", ns.DEFAULT_HOLD_TICKS);
+header:SetAttribute("hold2Ticks", ns.DEFAULT_HOLD2_TICKS);
 ns.header = header;
 
 -- Secure tick: the driver always resolves to "tock"; resetting the attribute to "tick" makes the next
@@ -174,29 +172,6 @@ local POST_CLICK = [[
 		savedUseOnKeyDown = nil;
 	end
 ]];
-
-local function Print(text)
-	print("|cff33ff99Gesture Commands|r: " .. text);
-end
-ns.Print = Print;
-
--------------------------------------------------------------------------------
--- Saved data: per character, since gestures depend on the character's spells.
--------------------------------------------------------------------------------
-
-local function DB()
-	return GestureCommandsCharDB;
-end
-ns.DB = DB;
-
-local function GetHoldTicks()
-	return DB().holdTicks or DEFAULT_HOLD_TICKS;
-end
-
-local function GetHold2Ticks()
-	return math.max(DB().hold2Ticks or DEFAULT_HOLD2_TICKS, GetHoldTicks() + 2);
-end
-ns.GetHoldTicks, ns.GetHold2Ticks = GetHoldTicks, GetHold2Ticks;
 
 -------------------------------------------------------------------------------
 -- Actions: { kind = "spell"|"item"|"toy"|"mount"|"macro", id = number, name = string }
@@ -1007,7 +982,6 @@ end
 -------------------------------------------------------------------------------
 
 local frame = CreateFrame("Frame");
-frame:RegisterEvent("ADDON_LOADED");
 frame:RegisterEvent("PLAYER_LOGIN");
 frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 frame:RegisterEvent("PLAYER_REGEN_ENABLED");
@@ -1035,12 +1009,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
 	if (event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED") and not self.oldMacrosChecked then
 		self.oldMacrosChecked = RemoveOldGestureMacros();
 	end
-	if event == "ADDON_LOADED" then
-		if ... == ADDON_NAME then
-			GestureCommandsCharDB = GestureCommandsCharDB or {};
-			GestureCommandsCharDB.gestures = GestureCommandsCharDB.gestures or {};
-		end
-	elseif event == "PLAYER_LOGIN" then
+	if event == "PLAYER_LOGIN" then
 		self.loggedIn = true;
 		RegisterStateDriver(header, "tick", "tock");
 		if GamepadMainActionBarFrame and GamepadMainActionBarFrame.PressActionButton then

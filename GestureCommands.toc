@@ -11,6 +11,8 @@
 ## AddonCompartmentFuncOnEnter: GestureCommands_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: GestureCommands_OnAddonCompartmentLeave
 
+Core\Core.lua
+Core\DB.lua
 GestureCommands.lua
 Navigation.lua
 Picker.lua
