@@ -87,6 +87,10 @@ function S.new(world)
 			return world.inCombat() and "1" or "0"
 		end,
 	}
+	-- Plain Lua functions the restricted environment also has.
+	for _, name in ipairs({ "tonumber", "tostring", "type", "select", "math", "string" }) do
+		if ALLOWED_GLOBALS[name] then emulated[name] = _G[name] end
+	end
 	for name, impl in pairs(world.functions or {}) do emulated[name] = impl end
 
 	local handleCache = setmetatable({}, { __mode = "k" })
@@ -190,11 +194,13 @@ function S.new(world)
 	end
 
 	-- One state-driver update: drivers whose value resolves differently set their state attribute.
-	-- Values with macro conditions resolve like SecureCmdOptionParse (only [combat] is emulated).
+	-- Values with macro conditions resolve like SecureCmdOptionParse (only [combat] is emulated), and then,
+	-- as in SecureStateDriver.lua's resolveDriver, "nil" becomes nil and numbers become numbers.
 	function R.tick()
 		for frame, d in pairs(R.drivers) do
 			local value = d.values
 			if value:find("^%[") then value = emulated.SecureCmdOptionParse(value) end
+			if value == "nil" then value = nil else value = tonumber(value) or value end
 			local attr = "state-" .. d.state
 			if frame.attrs[attr] ~= value then R.setAttribute(frame, attr, value, true) end
 		end

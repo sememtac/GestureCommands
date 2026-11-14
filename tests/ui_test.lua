@@ -334,6 +334,7 @@ world.blizzardBindings = {}
 -- Combat: the secure driver drops the bindings; nothing from addon code; back after combat.
 world.combat = true
 world.tick() -- the combat state driver runs the secure snippet
+check(not bound(), "combat start: the secure driver drops the D-pad bindings")
 local n = #world.bindingLog
 fire("PLAYER_REGEN_DISABLED")
 frame:Hide()
@@ -343,13 +344,20 @@ check(#world.bindingLog == n and not bound(), "in combat: opening the window doe
 click("Name & icon")
 check(not picker:IsShown() and calls[#calls]:find("in combat"), "name/icon refused in combat")
 world.combat = false
+world.tick()
 fire("PLAYER_REGEN_ENABLED")
 check(bound(), "after combat: window still open, D-pad bound again")
 world.combat = true
+world.tick()
 fire("PLAYER_REGEN_DISABLED")
 check(frame:IsShown() and frame.Editor.Header.Bind.enabled ~= nil, "own navigation: the window may stay open in combat (locked)")
+check(not bound(), "...with the D-pad back on the crossbar")
+frame:Hide() -- closed with B or Escape in combat
 world.combat = false
+world.tick()
 fire("PLAYER_REGEN_ENABLED")
+check(not bound(), "closed in combat: the D-pad stays the crossbar's after combat")
+frame:Show()
 
 -- Delete, enable, ticks, test.
 click("Delete gesture")

@@ -33,10 +33,11 @@ local bound = false;
 local gaveUp = false;
 
 -- Owns the override bindings. Secure, so it can drop them when combat starts: addon code can't change
--- bindings in combat.
+-- bindings in combat. The state driver hands over "1" as the number 1 (SecureStateDriver.lua turns
+-- numeric values into numbers).
 local owner = CreateFrame("Frame", "GestureCommandsNavOwner", UIParent, "SecureHandlerStateTemplate");
 owner:SetAttribute("_onstate-combat", ns.Snippet("_onstate-combat", [[
-	if newstate == "1" then
+	if tonumber(newstate) == 1 then
 		self:ClearBindings();
 	end
 ]]));
