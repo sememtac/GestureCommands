@@ -1,6 +1,7 @@
-package-as: GestureCommands
+Package-as: GestureCommands
 
 manual-changelog: CHANGELOG.md
 
 ignore:
   - README.md
+  - tests
