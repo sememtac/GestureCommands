@@ -13,7 +13,19 @@
 
 Core\Core.lua
 Core\DB.lua
-GestureCommands.lua
+Engine\ActionSlots.lua
+Engine\ActionKinds.lua
+Engine\Crossbar.lua
+Engine\SecureHeader.lua
+Engine\Publish.lua
+Engine\Labels.lua
+Engine\Gestures.lua
+Engine\Binding.lua
+Engine\Feedback.lua
+Engine\TotemCommands.lua
+Engine\OldMacros.lua
+Engine\Diagnostics.lua
+Engine\Commands.lua
 Navigation.lua
 Picker.lua
 Config.lua
