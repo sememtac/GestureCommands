@@ -13,6 +13,8 @@
 - Fixed: OK in Name & icon kept the Tap's name even after the Tap changed.
 - Fixed: the picker could save to another gesture if you selected or deleted one while it was open.
 - New gesture is off at 10 gestures, the most the list shows.
+- Picker, with the D-pad: left and right stay in a row (tabs, grid rows, pager, buttons); up and down move
+  between them. Before, right from a tab could drop into the grid.
 - Secure code the game would refuse is reported at load and by `/gestures test`.
 
 ## 1.0.0

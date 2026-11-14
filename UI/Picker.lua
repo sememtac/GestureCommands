@@ -440,6 +440,21 @@ local function CreatePicker()
 		end
 		return controls;
 	end
+	-- Name, source tabs, the grid's rows, pager, bottom buttons: left / right stay in a row, up / down go to
+	-- the next part (see UI/Navigation.lua).
+	function picker:GetNavRows()
+		local rows = { { self.NameBox }, self.tabs };
+		for row = 0, ROWS - 1 do
+			local cells = {};
+			for column = 1, COLUMNS do
+				cells[column] = self.cells[row * COLUMNS + column];
+			end
+			table.insert(rows, cells);
+		end
+		table.insert(rows, { self.First, self.Previous, self.Next, self.Last });
+		table.insert(rows, { self.Okay, self.Clear, self.Cancel });
+		return rows;
+	end
 	function picker:GetNavDefault()
 		for _, cell in ipairs(self.cells) do
 			if cell:IsShown() and (state.mode ~= "icon" or (cell.entry and cell.entry.icon == state.chosenIcon)) then
@@ -522,6 +537,7 @@ function ns.OpenActionPicker(anchor, gestureIndex, slotMode, onChosen)
 	picker.Title:SetText("Choose: " .. ns.MODE_LABELS[slotMode]);
 	picker.Hint:SetText(ACTION_HINTS[slotMode]);
 	picker.Clear:SetShown(gesture[slotMode] ~= nil);
+	ns.Nav.Refresh(picker);
 end
 
 function ns.ClosePicker()

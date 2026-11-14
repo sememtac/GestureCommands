@@ -77,6 +77,9 @@ For a Tap of each kind (spell, item, toy, mount, macro that casts a spell, macro
       "Blizzard blocked" message. **verify**
 - [ ] Open the window in combat with the mouse: it's locked; its X closes it.
 - [ ] Picker open, click another gesture in the list: the picker closes.
+- [ ] Picker with the D-pad, in both navigation modes: left / right move along the tabs, a grid row, the
+      pager and the bottom buttons, and never drop into the grid; up / down move between the name box, tabs,
+      grid rows, pager and buttons from any column (including past empty grid rows). **verify**
 - [ ] Ten gestures: New is off.
 
 ### Own navigation (`/gestures padnav own`)

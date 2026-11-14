@@ -9,6 +9,11 @@
 --   the controls a panel lists in GetNavControls() (GetNavDefault() picks the first).
 -- Both honour a control's OnSmartNavClick and a panel's SmartNavigationCloseHandler. A mode is
 -- { Open(panel, isPopup), Close(panel), Refresh(panel) } in Nav.modes.
+--
+-- A panel can also list its controls in rows (panel:GetNavRows(): top to bottom, each left to right). Then,
+-- in both modes, left / right move along the row and up / down go to the next row above / below with a
+-- usable control, to the one nearest in X. Without rows, each mode moves to the nearest control in the
+-- direction, which can leave a row for a nearer control below it.
 
 local _, ns = ...;
 
@@ -45,4 +50,55 @@ end
 function Nav.Refresh(panel)
 	local mode = Nav.modes[panelModes[panel] or "own"];
 	mode.Refresh(panel);
+end
+
+-------------------------------------------------------------------------------
+-- Rows
+-------------------------------------------------------------------------------
+
+Nav.DIRECTIONS = { "UP", "DOWN", "LEFT", "RIGHT" };
+local STEPS = { UP = { -1, 0 }, DOWN = { 1, 0 }, LEFT = { 0, -1 }, RIGHT = { 0, 1 } }; -- rows, columns
+
+function Nav.IsUsable(control)
+	return control ~= nil and control:IsVisible() and (control.IsEnabled == nil or control:IsEnabled()) and true or false;
+end
+
+-- Where a direction ("UP", "DOWN", "LEFT", "RIGHT") goes from a control: the control, or nil to stay. The
+-- second result is false if the control isn't in any row.
+function Nav.FindInRows(rows, from, direction)
+	local step = STEPS[direction];
+	for rowIndex, row in ipairs(rows) do
+		for columnIndex, control in ipairs(row) do
+			if control == from then
+				if step[2] ~= 0 then
+					local last = step[2] > 0 and #row or 1;
+					for index = columnIndex + step[2], last, step[2] do
+						if Nav.IsUsable(row[index]) then
+							return row[index], true;
+						end
+					end
+					return nil, true;
+				end
+				local fromX = from:GetCenter();
+				local last = step[1] > 0 and #rows or 1;
+				for index = rowIndex + step[1], last, step[1] do
+					local best, bestDistance;
+					for _, candidate in ipairs(rows[index]) do
+						if Nav.IsUsable(candidate) then
+							local x = candidate:GetCenter();
+							local distance = (fromX and x) and math.abs(x - fromX) or 0;
+							if not bestDistance or distance < bestDistance then
+								best, bestDistance = candidate, distance;
+							end
+						end
+					end
+					if best then
+						return best, true;
+					end
+				end
+				return nil, true;
+			end
+		end
+	end
+	return nil, false;
 end

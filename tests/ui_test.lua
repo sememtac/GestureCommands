@@ -61,6 +61,16 @@ C_InputInterfaceStyle = { GetCurrentStyle = function() return style end }
 InputUtil = poison("InputUtil")
 IconDataProviderMixin = poison("IconDataProviderMixin")
 GamepadSharedUtility = poison("GamepadSharedUtility")
+-- SmartNavigation's jump overrides (Utility.lua): recorded per control and direction, never on our frames.
+SMART_NAV_INPUT_DIRECTION = { UP = { x = 0, y = 1, dirKey = "up" }, DOWN = { x = 0, y = -1, dirKey = "down" },
+	LEFT = { x = -1, y = 0, dirKey = "left" }, RIGHT = { x = 1, y = 0, dirKey = "right" } }
+local navOverrides, overrideCalls = {}, 0
+function SmartNavigation_AddJumpNavigationOverride(button, direction, target)
+	assert(not world.combat, "jump overrides only out of combat")
+	overrideCalls = overrideCalls + 1
+	navOverrides[button] = navOverrides[button] or {}
+	navOverrides[button][direction.dirKey] = target
+end
 
 
 -- ---- the rest of the game the UI reads -------------------------------------------------------------
@@ -422,6 +432,42 @@ check(not managerCall("FrameShown", picker), "popup not registered twice")
 r = #managerCalls
 chooseTab("Items")
 check(managerCallsSince(r, "RefreshButtonGroups") > 0 and managerCall("RefreshButtonGroups", picker), "new page: picker rescanned")
+-- D-pad in the picker: left / right stay in a row, up / down go to the next part (jump overrides for
+-- SmartNavigation's cursor). Centres as laid out: tabs 80 apart, cells 38 apart just below them.
+for i, tab in ipairs(picker.tabs) do tab.center = { 52 + (i - 1) * 80, 300 } end
+for i, cell in ipairs(picker.cells) do cell.center = { 35 + ((i - 1) % 8) * 38, 265 - math.floor((i - 1) / 8) * 38 } end
+picker.First.center, picker.Previous.center, picker.Next.center, picker.Last.center = { 33, 70 }, { 71, 70 }, { 250, 70 }, { 288, 70 }
+picker.Clear.center, picker.Okay.center, picker.Cancel.center = { 61, 23 }, { 61, 23 }, { 270, 23 }
+ns.Nav.Refresh(picker)
+local tabs, cells = picker.tabs, picker.cells
+local function jump(control, dir) return navOverrides[control] and navOverrides[control][dir] end
+-- Items is the current tab (off); two items, one page (pager off); nothing to clear yet.
+check(jump(tabs[1], "right") == tabs[3] and jump(tabs[3], "left") == tabs[1] and jump(tabs[3], "right") == tabs[4],
+	"picker: right / left move along the tabs (past the current one)")
+check(jump(tabs[1], "left") == true and jump(tabs[4], "right") == true, "picker: the ends of the tab row stay put")
+check(jump(tabs[1], "down") == cells[1] and jump(tabs[4], "down") == cells[2], "picker: down from a tab goes to the grid")
+check(jump(cells[1], "right") == cells[2] and jump(cells[2], "right") == true and jump(cells[2], "left") == cells[1],
+	"picker: right / left move along the grid row")
+check(jump(cells[1], "up") == tabs[1] and jump(cells[2], "up") == tabs[1], "picker: up from the grid goes to the nearest tab")
+check(jump(cells[2], "down") == picker.Cancel and jump(picker.Cancel, "up") == cells[2], "picker: down past empty rows and the idle pager to the buttons, and back")
+local pointsAtHidden = false
+for _, row in ipairs(picker:GetNavRows()) do
+	for _, c in ipairs(row) do
+		if c:IsVisible() then
+			for _, target in pairs(navOverrides[c] or {}) do
+				if target ~= true and not target:IsVisible() then pointsAtHidden = true end
+			end
+		end
+	end
+end
+check(not pointsAtHidden, "picker: no visible control's override points at a hidden one")
+local callsBefore = overrideCalls
+ns.Nav.Refresh(picker)
+check(overrideCalls == callsBefore, "picker: unchanged overrides aren't sent again")
+local allInRows = true
+local inRows = {}; for _, row in ipairs(picker:GetNavRows()) do for _, c in ipairs(row) do inRows[c] = true end end
+for _, c in ipairs(picker:GetNavControls()) do if not inRows[c] then allInRows = false end end
+check(allInRows, "picker: every control it navigates is in a row")
 picker.cells[1]:Click("LeftButton")
 check(not picker:IsShown() and managerCall("HandlePopupHide", picker), "choosing closes the popup through Blizzard")
 check(db.gestures[#db.gestures].trigger.name == "Healthstone", "item chosen as trigger")

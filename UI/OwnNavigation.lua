@@ -124,9 +124,7 @@ local function TopPanel()
 	return panels[#panels];
 end
 
-local function IsUsable(control)
-	return control ~= nil and control:IsVisible() and (control.IsEnabled == nil or control:IsEnabled()) and true or false;
-end
+local IsUsable = Nav.IsUsable;
 
 local function FindDefault(panel, preferred)
 	if IsUsable(preferred) then
@@ -180,7 +178,8 @@ local function Select(control)
 	end
 end
 
--- The nearest usable control in a direction: mostly along it, with sideways distance counting double.
+-- For panels without rows: the nearest usable control in a direction, mostly along it, with sideways
+-- distance counting double.
 local function FindNext(panel, from, dx, dy)
 	local fromX, fromY = from:GetCenter();
 	if not fromX then
@@ -240,7 +239,13 @@ function Nav.OnInput(command)
 	end
 	local direction = DIRECTIONS[command];
 	if direction then
-		local nextControl = FindNext(panel, current, direction[1], direction[2]);
+		local nextControl, inRows;
+		if panel.GetNavRows then
+			nextControl, inRows = Nav.FindInRows(panel:GetNavRows(), current, command);
+		end
+		if not inRows then
+			nextControl = FindNext(panel, current, direction[1], direction[2]);
+		end
 		if nextControl then
 			Select(nextControl);
 		end

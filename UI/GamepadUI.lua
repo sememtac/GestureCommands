@@ -70,15 +70,46 @@ local function Unregister(panel)
 	end
 end
 
+-- A panel with rows (see Navigation.lua): every control gets SmartNavigation jump overrides for the four
+-- directions, from the rows, so its cursor never leaves a row for a nearer control in the next one. True
+-- (stay) where the rows have nowhere to go. Set through SmartNavigation_AddJumpNavigationOverride, which
+-- Blizzard offers for this: its values are set by secure code, out of combat. Recomputed whenever the panel
+-- shows, hides or disables controls (Nav.Refresh); only changes are sent.
+local appliedOverrides = setmetatable({}, { __mode = "k" }); -- control -> direction -> target
+
+local function ApplyRowOverrides(panel)
+	if not (panel.GetNavRows and SmartNavigation_AddJumpNavigationOverride and SMART_NAV_INPUT_DIRECTION) or InCombatLockdown() then
+		return;
+	end
+	local rows = panel:GetNavRows();
+	for _, row in ipairs(rows) do
+		for _, control in ipairs(row) do
+			if control:IsVisible() then
+				local applied = appliedOverrides[control] or {};
+				appliedOverrides[control] = applied;
+				for _, direction in ipairs(Nav.DIRECTIONS) do
+					local target = Nav.FindInRows(rows, control, direction) or true;
+					if applied[direction] ~= target then
+						local ok = pcall(SmartNavigation_AddJumpNavigationOverride, control, SMART_NAV_INPUT_DIRECTION[direction], target);
+						applied[direction] = ok and target or nil;
+					end
+				end
+			end
+		end
+	end
+end
+
 Nav.modes.blizzard = {
 	Open = function(panel, isPopup)
 		blizzardPanels[panel] = isPopup and true or false;
 		Register(panel);
+		ApplyRowOverrides(panel);
 	end,
 
 	Close = function(panel)
 		blizzardPanels[panel] = nil;
 		Unregister(panel);
+		wipe(appliedOverrides); -- the next open sends them all again
 	end,
 
 	-- SmartNavigation collects a panel's buttons when it opens; rescan after showing or hiding some.
@@ -86,6 +117,7 @@ Nav.modes.blizzard = {
 		if registered[panel] and not InCombatLockdown() and SmartNavigation and SmartNavigation.RefreshButtonGroups then
 			pcall(SmartNavigation.RefreshButtonGroups, SmartNavigation, panel);
 		end
+		ApplyRowOverrides(panel);
 	end,
 };
 
