@@ -46,35 +46,73 @@ for _, file in ipairs(files) do
 end
 
 -- ---- secure snippets -----------------------------------------------------------------------------
--- Every long string ([[ ]] / [=[ ]=]) in the addon is a secure snippet. Its signature follows from what it is
--- given to: _onstate-* and _onattributechanged attributes, or a wrapped OnClick (pre and post bodies).
-local SIGNATURES = {
-	["_onstate"] = "self,stateid,newstate",
-	["_onattributechanged"] = "self,name,value",
-}
-local WRAP_SIGNATURE = "self,button,down,message"
+-- Every long string ([[ ]] / [=[ ]=]) in the addon is a secure snippet, given to ns.Snippet with the name of
+-- the attribute or script it is for; the name says the signature Blizzard calls it with.
+local function SignatureFor(name)
+	if name:match("^_onstate%-") then return "self,stateid,newstate" end
+	return ({
+		_onattributechanged = "self,name,value",
+		["OnClick-pre"] = "self,button,down",
+		["OnClick-post"] = "self,message,button,down",
+	})[name]
+end
 local snippets = 0
 for _, file in ipairs(files) do
 	local src = H.read(H.root .. "/" .. file)
 	local pos = 1
 	while true do
-		local s, e, eq = src:find("[=,(]%s*%[(=*)%[", pos)
+		local s, e, eq = src:find("%[(=*)%[", pos)
 		if not s then break end
 		local close = src:find("]" .. eq .. "]", e + 1, true)
 		assert(close, file .. ": unterminated long string")
 		local body = src:sub(e + 1, close - 1)
 		local line = select(2, src:sub(1, s):gsub("\n", "")) + 1
-		local before = src:sub(math.max(1, s - 120), s)
-		local attr = before:match('"(_on[%w]+)[^"]*"%s*,%s*$')
-		local signature = attr and (SIGNATURES[attr] or SIGNATURES[attr:match("^_onstate") and "_onstate" or attr]) or WRAP_SIGNATURE
-		local problems = S.staticProblems(body, signature)
+		local name = src:sub(math.max(1, s - 80), s - 1):match('ns%.Snippet%("([^"]+)",%s*$')
+		local signature = name and SignatureFor(name)
 		snippets = snippets + 1
-		check(#problems == 0, ("snippet %s:%d (%s) is valid restricted code%s"):format(file, line, attr or "wrapped OnClick",
-			#problems > 0 and (": " .. table.concat(problems, "; ")) or ""))
+		if check(signature ~= nil, ("snippet %s:%d goes through ns.Snippet with a known name (%s)"):format(file, line, tostring(name))) then
+			local problems = S.staticProblems(body, signature)
+			check(#problems == 0, ("snippet %s:%d (%s) is valid restricted code%s"):format(file, line, name,
+				#problems > 0 and (": " .. table.concat(problems, "; ")) or ""))
+		end
 		pos = close + 2 + #eq
 	end
 end
-check(snippets >= 5, "found the secure snippets (" .. snippets .. ")")
+check(snippets == 5, "found the secure snippets (" .. snippets .. ")")
+
+-- The load-time check in Core reports a snippet the game would refuse.
+do
+	dofile(lib .. "world.lua").new()
+	local ns = {}
+	H.loadAddon(ns, function(file) return file == "Core/Core.lua" end)
+	check(ns.Snippet("ok", "return;") == "return;" and #ns.snippetErrors == 0, "ns.Snippet passes good code through")
+	ns.Snippet("bad", "-- a function word\nreturn;")
+	ns.Snippet("braces", "local t = {};")
+	check(#ns.snippetErrors == 2 and ns.snippetErrors[1]:find("bad") and ns.snippetErrors[2]:find("brace"), "ns.Snippet reports the word \"function\" and braces")
+	check(#ns.snippets == 3, "ns.Snippet keeps every snippet for tests")
+end
+
+-- ---- the UI uses only the engine API -------------------------------------------------------------
+do
+	local allowed = {}
+	for _, name in ipairs(dofile(lib .. "engine_api.lua")) do allowed[name] = true end
+	for _, name in ipairs({ "OnPublished", "OnPlacingChanged", "ToggleConfig", "CloseConfig", "ToggleMinimapButton" }) do allowed[name] = true end
+	local uiFiles = {}
+	for _, file in ipairs(files) do
+		if file:match("^UI/") or not (file:match("^Core/") or file:match("^Engine/")) then uiFiles[#uiFiles + 1] = file end
+	end
+	for _, file in ipairs(uiFiles) do -- names the UI defines for itself
+		for name in H.read(H.root .. "/" .. file):gmatch("function ns%.([%w_]+)") do allowed[name] = true end
+		for name in H.read(H.root .. "/" .. file):gmatch("\nns%.([%w_]+)%s*=") do allowed[name] = true end
+	end
+	for _, file in ipairs(uiFiles) do
+		local bad = {}
+		for name in H.read(H.root .. "/" .. file):gmatch("ns%.([%w_]+)") do
+			if not allowed[name] and not bad[name] then bad[name] = true; bad[#bad + 1] = name end
+		end
+		check(#bad == 0, "UI file uses only the engine API: " .. file .. (#bad > 0 and (" (" .. table.concat(bad, ", ") .. ")") or ""))
+	end
+end
 
 -- The checker itself: what broke binding in 1.0.1, and other things Blizzard refuses.
 check(S.compileError("local function F() end") == "The function keyword is not permitted", "checker: a local function is refused")

@@ -33,14 +33,14 @@ local chosen = false; -- released on our slot: toggle the window once the dial h
 local closeCount = 0;
 
 local closer = CreateFrame("Frame", "GestureCommandsDialCloser", UIParent, "SecureHandlerAttributeTemplate");
-closer:SetAttribute("_onattributechanged", [[
+closer:SetAttribute("_onattributechanged", ns.Snippet("_onattributechanged", [[
 	if name == "close-dial" then
 		local dial = self:GetFrameRef("dial");
 		if dial and dial:IsVisible() then
 			dial:Hide(true);
 		end
 	end
-]]);
+]]));
 
 local function GetFreeSlot(radial)
 	if radial.currentMainMenuPageIndex ~= RADIAL_PAGE or not radial.SegmentList then

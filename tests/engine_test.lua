@@ -86,6 +86,10 @@ function GetMacroItem() return nil end
 local bars = world.buildCrossbar()
 local ns = {}
 H.loadAddon(ns, isEngineFile)
+local missing = {}
+for _, name in ipairs(dofile(lib .. "engine_api.lua")) do if ns[name] == nil then missing[#missing + 1] = name end end
+check(#missing == 0, "the engine provides its whole API (" .. table.concat(missing, ", ") .. ")")
+check(#ns.snippetErrors == 0 and #ns.snippets == 3, "the engine's secure snippets pass the load-time check")
 local header = GestureCommandsHeader
 local fire, runTimers, poll, press, last = world.fire, world.runTimers, world.poll, world.press, world.lastCast
 local function tick() world.tick() end

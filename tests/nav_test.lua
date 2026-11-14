@@ -5,7 +5,9 @@ local H = dofile(lib .. "harness.lua")
 dofile(lib .. "world.lua").new()
 local check = H.check
 
-local ns = { Print = function() end, DB = function() return { ownNavigation = true } end }
+local ns = {}
+H.loadAddon(ns, function(file) return file == "Core/Core.lua" end)
+ns.Print, ns.DB = function() end, function() return { ownNavigation = true } end
 H.loadAddon(ns, function(file) return file == "Navigation.lua" or file == "UI/Navigation.lua" end)
 assert(ns.Nav, "Navigation.lua didn't load")
 

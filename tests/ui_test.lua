@@ -120,7 +120,10 @@ SPELL_ICONS = {}; for _, spell in ipairs(book) do SPELL_ICONS[spell.spellID] = s
 -- ---- fake engine ----------------------------------------------------------------------------------
 local db = { gestures = {} }
 local calls = {}
-local ns; ns = {
+-- Core is shared and real; the engine is fake.
+local ns = {}
+H.loadAddon(ns, function(file) return file:match("^Core/") ~= nil and file ~= "Core/DB.lua" end)
+for k, v in pairs({
 	MODE_LABELS = { trigger = "Tap", hold = "Hold", long = "Long hold" },
 	conflicts = {},
 	DB = function() return db end,
@@ -136,7 +139,7 @@ local ns; ns = {
 	MakeTrigger = function(a) local ok = { spell = true, item = true, toy = true, mount = true, macro = true }; if ok[a.kind] then return a end end,
 	Publish = function() calls[#calls + 1] = "publish"; if ns.OnPublished then ns.OnPublished() end end,
 	RunTest = function() calls[#calls + 1] = "test" end,
-}
+}) do ns[k] = v end
 function ns.AddGesture(g) table.insert(db.gestures, g or {}); ns.Publish(); return #db.gestures end
 function ns.RemoveGesture(i) table.remove(db.gestures, i); ns.Publish() end
 function ns.SetGestureAction(i, mode, a) db.gestures[i][mode] = a; ns.Publish() end
@@ -148,6 +151,10 @@ function ns.IsPlacing() return placingNow end
 function ns.CancelPlacing() calls[#calls + 1] = "cancelplace"; placingNow = false end
 function ns.SetEnabled(v) if world.combat then return false end; db.enabled = v; ns.Publish(); return true end
 
+local api = dofile(lib .. "engine_api.lua")
+local missing = {}
+for _, name in ipairs(api) do if ns[name] == nil then missing[#missing + 1] = name end end
+check(#missing == 0, "the fake engine provides the whole engine API (" .. table.concat(missing, ", ") .. ")")
 H.loadAddon(ns, isUIFile)
 check(settingsPanel ~= nil, "Settings > AddOns entry registered")
 

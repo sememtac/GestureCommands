@@ -128,11 +128,11 @@ local gaveUp = false;
 -- Owns the override bindings. Secure, so it can drop them when combat starts: addon code can't change
 -- bindings in combat.
 local owner = CreateFrame("Frame", "GestureCommandsNavOwner", UIParent, "SecureHandlerStateTemplate");
-owner:SetAttribute("_onstate-combat", [[
+owner:SetAttribute("_onstate-combat", ns.Snippet("_onstate-combat", [[
 	if newstate == "1" then
 		self:ClearBindings();
 	end
-]]);
+]]));
 local driverRegistered = false;
 local function RegisterCombatDriver()
 	if not driverRegistered and not InCombatLockdown() then
