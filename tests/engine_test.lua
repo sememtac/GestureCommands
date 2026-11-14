@@ -408,6 +408,37 @@ call(ns.StartPlacing, 1)
 runTimers()
 check(not ns.IsPlacing() and header.attrs.placing == false and printed[#printed]:find("cancelled"), "place mode times out")
 
+-- Cancelled in combat (the banner says to open the window to cancel): cancelled once combat ends.
+call(ns.StartPlacing, 1)
+world.timers = {} -- not the timeout
+world.combat = true
+call(ns.CancelPlacing)
+world.combat = false
+fire("PLAYER_REGEN_ENABLED"); runTimers()
+check(not ns.IsPlacing() and header.attrs.placing == false, "cancelled in combat: cancelled once combat ends")
+
+-- A placement that doesn't take (the Tap couldn't go on the cursor, e.g. an item not in the bags).
+local target5 = bars.bottomBar.buttons[4]
+world.actions[target5.id] = { "spell", 331 }
+local putActionInSlot = C_ActionBar.PutActionInSlot
+C_ActionBar.PutActionInSlot = function() world.cursor = nil end
+wipe(messages)
+call(ns.StartPlacing, 1)
+click(target5, "LeftButton", true); poll(); click(target5, "LeftButton", false); poll()
+C_ActionBar.PutActionInSlot = putActionInSlot
+check(messages[#messages] ~= "Totems placed" and printed[#printed]:find("couldn't place"), "a placement that didn't take: not reported as placed")
+
+-- With the mouse: a click acts on release, which must not cast either.
+local target6 = bars.bottomBar.buttons[7]
+world.actions[target6.id] = { "spell", 331 }
+call(ns.StartPlacing, 1)
+world.casts = {}
+world.mouseClick(target6)
+check(#world.casts == 0 and world.actions[target6.id][2] == 66842, "mouse click in place mode: binds, and casts nothing")
+world.casts = {}
+press(target6, 1)
+check(last() == "slot:spell:66842", "...and the slot's next press works")
+
 -- Slash commands.
 slash("hold 9"); check(printed[#printed]:find("must be"), "hold out of range rejected")
 slash("hold 4"); check(header.attrs.holdTicks == 4, "hold setting published")
@@ -455,13 +486,18 @@ GestureCommandsCharDB = { gestures = {
 	{ trigger = { kind = "spell", id = 66842, name = "Call of the Elements" }, macro = "Call of the Elem" },
 	{ trigger = { kind = "spell", id = 331, name = "Healing Wave" }, macro = "Healing Wave" },
 	{ trigger = { kind = "item", id = 5512 }, macro = "Gone" },
+	{ trigger = { kind = "item", id = 5512 }, macro = "Healthstone" },
 } }
+local userMacros = #MACROS
 MACROS[#MACROS + 1] = { name = "Call of the Elem", icon = 134400, body = "/cast Call of the Elements" }
 MACROS[#MACROS + 1] = { name = "Healing Wave", icon = 134400, body = "/cast Healing Wave\n/say Healing!" } -- edited by the player
+MACROS[#MACROS + 1] = { name = "Healthstone", icon = 134400, body = "/use item:5512" }
 sortMacros()
-local userMacros = #MACROS - 2
 world.actions[61] = { "macro", 66842, "spell", name = "Call of the Elem" }
 world.actions[62] = { "macro", 331, "spell", name = "Healing Wave" }
+world.actions[63] = { "macro", 5512, "item", name = "Healthstone" }
+local pickupItem = C_Item.PickupItem
+C_Item.PickupItem = function() end -- no Healthstone in the bags
 -- A fresh session: the first one's frames stop receiving events, a new copy of the addon loads.
 for _, f in ipairs(W.frames) do f.events = {} end
 H.loadAddon({}, isEngineFile)
@@ -475,12 +511,24 @@ fireUpgrade("PLAYER_REGEN_ENABLED"); runTimers()
 check(findMacro("Call of the Elem") == nil, "upgrade: the addon's old gesture macro is deleted")
 check(world.actions[61][1] == "spell" and world.actions[61][2] == 66842, "upgrade: the slot that held it now holds the Tap spell")
 check(findMacro("Healing Wave") and world.actions[62][1] == "macro", "upgrade: a macro the player edited is left alone (and stays on its slot)")
-check(#MACROS == userMacros + 1, "upgrade: no other macros touched")
+check(findMacro("Healthstone") and world.actions[63][1] == "macro", "upgrade: a macro whose Tap can't go on its slot is kept (and stays on it)")
+C_Item.PickupItem = pickupItem
+check(#MACROS == userMacros + 2, "upgrade: no other macros touched")
 local forgot = true; for _, gesture in ipairs(GestureCommandsCharDB.gestures) do if gesture.macro then forgot = false end end
 check(forgot, "upgrade: gestures no longer point at macros")
 check(printed[#printed]:find("removed 1 macro "), "upgrade: tells the player")
 local printedBefore = #printed
 fireUpgrade("PLAYER_ENTERING_WORLD")
 check(#printed == printedBefore, "upgrade: runs once")
+
+-- A reload in combat: the secure tick can't be set up until combat ends.
+for _, f in ipairs(W.frames) do f.events = {} end
+H.loadAddon({}, isEngineFile)
+world.combat = true
+local loggedInOk = pcall(world.fire, "ADDON_LOADED", "GestureCommands") and pcall(world.fire, "PLAYER_LOGIN")
+check(loggedInOk, "reload in combat: nothing protected at login")
+world.combat = false
+world.fire("PLAYER_REGEN_ENABLED"); runTimers()
+check(world.R.drivers[GestureCommandsHeader] ~= nil, "...and the secure tick starts once combat ends")
 
 H.finish()

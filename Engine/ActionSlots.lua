@@ -25,10 +25,10 @@ end
 
 -- Returns a scan: scan.slots[slot] = { kind, id, subType (GetActionInfo), shows, text } for every slot that
 -- holds something. `shows` is what the secure code sees the slot as: a macro counts as the spell or item it
--- shows (its subType). `text` is the macro's name, for macros only.
-function Engine.ScanActionSlots()
+-- shows (its subType). `text` is the macro's name, for macros only. All slots, or only `onlySlot`.
+function Engine.ScanActionSlots(onlySlot)
 	local scan = setmetatable({ slots = {}, spellNames = {} }, Scan);
-	for slot = 1, MAX_ACTION_SLOT do
+	for slot = onlySlot or 1, onlySlot or MAX_ACTION_SLOT do
 		local kind, id, subType = GetActionInfo(slot);
 		if kind then
 			scan.slots[slot] = {

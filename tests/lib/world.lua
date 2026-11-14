@@ -143,10 +143,12 @@ function M.new()
 		return bars
 	end
 
-	-- A simplified SecureActionButton_OnClick: casts the "*type" virtual button, else the slot's action.
-	function world.blizzardOnClick(btn, button, down)
+	-- A simplified SecureActionButton_OnClick: casts the "*type" virtual button, else the slot's action. A
+	-- mouse click acts on release, whatever useOnKeyDown says (isSecureMousePress there).
+	function world.blizzardOnClick(btn, button, down, isMouse)
 		local useOnKeyDown = btn.attrs.useOnKeyDown
 		if useOnKeyDown == nil then useOnKeyDown = world.useKeyDownCVar end
+		if isMouse then useOnKeyDown = false end
 		if not ((down and useOnKeyDown) or (not down and not useOnKeyDown)) then return end
 		local suffix = (button == "LeftButton") and "1" or ("-" .. button)
 		local t = btn.attrs["*type" .. suffix]
@@ -157,7 +159,14 @@ function M.new()
 			if a then world.casts[#world.casts + 1] = "slot:" .. a[1] .. ":" .. tostring(a[2]) end
 		end
 	end
-	function world.click(btn, button, down) R.click(btn, button, down, world.blizzardOnClick) end
+	function world.click(btn, button, down, isMouse)
+		R.click(btn, button, down, function(b, mouseButton, d) world.blizzardOnClick(b, mouseButton, d, isMouse) end)
+	end
+	-- A mouse click: press and release, with the feedback poll after each.
+	function world.mouseClick(btn)
+		world.click(btn, "LeftButton", true, true); world.poll()
+		world.click(btn, "LeftButton", false, true); world.poll()
+	end
 	-- Press, hold for some secure ticks, release (with the feedback poll each frame).
 	function world.press(btn, ticksHeld)
 		world.click(btn, "LeftButton", true)

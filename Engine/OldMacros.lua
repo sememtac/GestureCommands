@@ -23,14 +23,23 @@ local function RemoveOldGestureMacros()
 			local madeBody = trigger.kind == "item" and ("/use item:" .. trigger.id)
 				or ("/cast " .. (C_Spell.GetSpellName(trigger.id) or trigger.name or ""));
 			if body and strtrim(body) == madeBody then
+				local kept = false;
 				for slot = 1, Engine.MAX_ACTION_SLOT do
-					if GetActionInfo(slot) == "macro" and Engine.GetSlotActionText(slot) == name and ns.PickupGesture(index) then
-						(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
+					if GetActionInfo(slot) == "macro" and Engine.GetSlotActionText(slot) == name then
+						if ns.PickupGesture(index) and GetCursorInfo() then
+							(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
+						end
 						ClearCursor();
+						-- Still the macro: the Tap couldn't go there (e.g. an item not in the bags). Keep it.
+						if GetActionInfo(slot) == "macro" and Engine.GetSlotActionText(slot) == name then
+							kept = true;
+						end
 					end
 				end
-				DeleteMacro(macroIndex);
-				removed = removed + 1;
+				if not kept then
+					DeleteMacro(macroIndex);
+					removed = removed + 1;
+				end
 			end
 		end
 	end

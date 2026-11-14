@@ -268,6 +268,17 @@ function Engine.GetTriggerKeys(trigger, scan)
 	return keys;
 end
 
+-- Whether an action slot holds this Tap now, as the secure code would find it there.
+function Engine.SlotHoldsTrigger(slot, trigger)
+	local scan = Engine.ScanActionSlots(slot);
+	local info = scan.slots[slot];
+	if not info then
+		return false;
+	end
+	local keys = Engine.GetTriggerKeys(trigger, scan);
+	return keys["slot:" .. slot] or (info.shows ~= nil and info.id ~= nil and keys[info.shows .. ":" .. info.id]) or false;
+end
+
 -- Reads the cursor into an action (nil and the cursor type if it holds something else).
 function ns.ReadCursor()
 	local cursorType, info1, _, info3 = GetCursorInfo();

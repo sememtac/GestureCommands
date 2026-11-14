@@ -50,12 +50,21 @@ header:SetAttribute("_onstate-tick", ns.Snippet("_onstate-tick", [[
 -- a macro counts as what it shows); each holds the gesture number. The secure compiler refuses snippets with
 -- the word "function" or a brace (see ns.Snippet), so the slot lookup is written out twice rather than shared.
 local PRE_CLICK = ns.Snippet("OnClick-pre", [[
+	-- The release of the press that placed a gesture does nothing either (a mouse click acts on release).
+	if placedSlot then
+		local placed = placedSlot;
+		placedSlot = nil;
+		if not down and placed == self:GetID() then
+			return false;
+		end
+	end
 	-- Place mode: the next crossbar press only says where to put a gesture. Not in combat: there every press
 	-- does its action, and the gesture waits for a press after the fight.
 	if control:GetAttribute("placing") and SecureCmdOptionParse("[combat] 1; 0") ~= "1" then
 		if down then
 			control:SetAttribute("placing", false);
 			control:SetAttribute("placeSlot", self:GetID());
+			placedSlot = self:GetID();
 			-- Drop any gesture press whose release never arrived (e.g. the window took focus mid-press).
 			pressedSlot = nil;
 			pressedGesture = nil;
@@ -189,6 +198,9 @@ function Engine.WrapCrossbarButtons()
 	end
 end
 
+-- After a reload in combat, once combat ends.
 ns.On("PLAYER_LOGIN", function()
-	RegisterStateDriver(header, "tick", "tock");
+	ns.AfterCombat(function()
+		RegisterStateDriver(header, "tick", "tock");
+	end);
 end);

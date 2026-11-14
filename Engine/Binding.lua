@@ -41,7 +41,17 @@ local function NotifyPlacing()
 end
 
 function ns.CancelPlacing(quiet)
-	if not placing or InCombatLockdown() then
+	if not placing then
+		return;
+	end
+	if InCombatLockdown() then
+		-- Can't change the secure state in combat: cancel when it ends.
+		local token = placing.token;
+		ns.AfterCombat(function()
+			if placing and placing.token == token then
+				ns.CancelPlacing(quiet);
+			end
+		end);
 		return;
 	end
 	placing = nil;
@@ -75,12 +85,9 @@ function ns.StartPlacing(index)
 	UIErrorsFrame:AddMessage(("Press the crossbar button for %s"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
 	NotifyPlacing();
 	C_Timer.After(PLACE_TIMEOUT, function()
-		-- Can't change the secure state in combat: then it's cancelled when combat ends.
-		ns.AfterCombat(function()
-			if placing and placing.token == token then
-				ns.CancelPlacing();
-			end
-		end);
+		if placing and placing.token == token then
+			ns.CancelPlacing();
+		end
 	end);
 	return true;
 end
@@ -97,7 +104,7 @@ function ns.FinishPlacing(slot)
 	end
 	(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
 	ClearCursor();
-	if GetActionInfo(slot) then
+	if Engine.SlotHoldsTrigger(slot, gesture.trigger) then
 		UIErrorsFrame:AddMessage(("%s placed"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
 		Engine.Rumble();
 	else
