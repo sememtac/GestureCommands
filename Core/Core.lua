@@ -23,15 +23,24 @@ function ns.Print(text)
 	print("|cff33ff99Gesture Commands|r: " .. text);
 end
 
+-- Calls fn; an error is reported (as the game reports Lua errors) without stopping the caller.
+local function SafeCall(fn, ...)
+	local ok, err = pcall(fn, ...);
+	if not ok then
+		geterrorhandler()(err);
+	end
+end
+
 -------------------------------------------------------------------------------
--- Events: one frame; handlers run in the order they were added (that is, TOC order).
+-- Events: one frame; handlers run in the order they were added (that is, TOC order). One failing
+-- handler doesn't stop the others.
 -------------------------------------------------------------------------------
 
 local handlers = {}; -- event -> { handler, ... }
 local eventFrame = CreateFrame("Frame");
 eventFrame:SetScript("OnEvent", function(_, event, ...)
 	for _, handler in ipairs(handlers[event]) do
-		handler(event, ...);
+		SafeCall(handler, event, ...);
 	end
 end);
 
@@ -62,7 +71,7 @@ ns.On("PLAYER_REGEN_ENABLED", function()
 	local queued = afterCombat;
 	afterCombat = {};
 	for _, fn in ipairs(queued) do
-		fn();
+		SafeCall(fn);
 	end
 end);
 

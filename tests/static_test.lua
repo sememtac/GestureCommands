@@ -82,7 +82,7 @@ check(snippets == 5, "found the secure snippets (" .. snippets .. ")")
 
 -- The load-time check in Core reports a snippet the game would refuse.
 do
-	dofile(lib .. "world.lua").new()
+	local world = dofile(lib .. "world.lua").new()
 	local ns = {}
 	H.loadAddon(ns, function(file) return file == "Core/Core.lua" end)
 	check(ns.Snippet("ok", "return;") == "return;" and #ns.snippetErrors == 0, "ns.Snippet passes good code through")
@@ -90,6 +90,26 @@ do
 	ns.Snippet("braces", "local t = {};")
 	check(#ns.snippetErrors == 2 and ns.snippetErrors[1]:find("bad") and ns.snippetErrors[2]:find("brace"), "ns.Snippet reports the word \"function\" and braces")
 	check(#ns.snippets == 3, "ns.Snippet keeps every snippet for tests")
+
+	-- The event hub and the combat queue: in order, and one failing handler doesn't stop the others.
+	local reported, ran = {}, {}
+	local raise = geterrorhandler
+	geterrorhandler = function() return function(e) reported[#reported + 1] = e end end
+	ns.On("TEST_EVENT", function() ran[#ran + 1] = "first"; error("boom") end)
+	ns.On("TEST_EVENT", function(event, arg) ran[#ran + 1] = event .. ":" .. arg end)
+	world.fire("TEST_EVENT", "x")
+	check(table.concat(ran, ",") == "first,TEST_EVENT:x" and #reported == 1 and reported[1]:find("boom"),
+		"event hub: handlers in order, an error is reported and the next handler still runs")
+	world.combat, ran, reported = true, {}, {}
+	ns.AfterCombat(function() ran[#ran + 1] = 1; error("boom") end)
+	ns.AfterCombat(function() ran[#ran + 1] = 2 end)
+	check(#ran == 0, "AfterCombat waits in combat")
+	world.combat = false
+	world.fire("PLAYER_REGEN_ENABLED")
+	check(table.concat(ran, ",") == "1,2" and #reported == 1, "AfterCombat runs the queue in order when combat ends, past an error")
+	ns.AfterCombat(function() ran[#ran + 1] = 3 end)
+	check(ran[3] == 3, "AfterCombat runs at once out of combat")
+	geterrorhandler = raise
 end
 
 -- ---- the UI uses only the engine API -------------------------------------------------------------

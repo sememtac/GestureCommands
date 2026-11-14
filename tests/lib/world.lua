@@ -37,6 +37,8 @@ function M.new()
 	function strtrim(s) return (tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", "")) end
 	function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 	function tinsert(t, v) table.insert(t, v) end
+	-- The game's error handler shows the error; here it stops the test with it.
+	function geterrorhandler() return function(e) error(e, 0) end end
 	SlashCmdList = {}
 	UISpecialFrames = {}
 	function hooksecurefunc(t, k, fn)
