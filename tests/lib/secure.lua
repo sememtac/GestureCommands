@@ -102,6 +102,7 @@ function S.new(world)
 		end
 		local methods = {
 			GetID = function() return frameFor().id or 0 end,
+			GetName = function() return frameFor().name end,
 			GetAttribute = function(_, k) return frameFor().attrs[k] end,
 			SetAttribute = function(_, k, v) R.setAttribute(frameFor(), k, v, true) end,
 			GetFrameRef = function(_, label)

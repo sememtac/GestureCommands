@@ -102,7 +102,7 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 			return;
 		end
 		pressedSlot = slot;
-		pressedPosition = control:GetAttribute("pos:" .. slot);
+		pressedPosition = control:GetAttribute("pos:" .. (self:GetName() or ""));
 		pressedGesture = gesture;
 		ticks = 0;
 		armed = 0;
@@ -115,7 +115,7 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 	if not pressedSlot then
 		return;
 	end
-	if pressedSlot ~= slot and control:GetAttribute("pos:" .. slot) ~= pressedPosition then
+	if pressedSlot ~= slot and control:GetAttribute("pos:" .. (self:GetName() or "")) ~= pressedPosition then
 		-- Another crossbar button released while the gesture is held: not ours.
 		return;
 	end
@@ -125,8 +125,8 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 	pressedGesture = nil;
 	control:SetAttribute("armed", 0);
 	if pressedSlot ~= slot then
-		-- The crossbar page changed mid-hold: the release arrives at the button now in the pressed one's
-		-- place, which holds something else. Drop the press.
+		-- The bar or page changed mid-hold: the release arrives at another bar's button in the same place,
+		-- or at the same button now showing another page's slot. Drop the press.
 		pressedSlot = nil;
 		return;
 	end
@@ -181,12 +181,15 @@ local POST_CLICK = ns.Snippet("OnClick-post", [[
 local wrapped = {}; -- crossbar button -> true once its OnClick is wrapped
 ns.wrapped = wrapped;
 
--- Wraps every crossbar button not wrapped yet (out of combat). "pos:<slot>" is the button's place on its
--- bar, the same physical button on every crossbar page, so the secure code can tell a release after a page
--- change from another button's release.
+-- Wraps every crossbar button not wrapped yet (out of combat). "pos:<button name>" is the button's place on
+-- its bar: the same physical button on every bar, so the secure code can tell a release after a bar or page
+-- change from another button's release. By name, because changing page gives the same buttons new slots.
 function Engine.WrapCrossbarButtons()
 	for _, info in ipairs(ns.GetCrossbarButtons()) do
-		header:SetAttribute("pos:" .. info.button:GetID(), info.index);
+		local name = info.button:GetName();
+		if name then
+			header:SetAttribute("pos:" .. name, info.index);
+		end
 		if not wrapped[info.button] then
 			local ok, err = pcall(SecureHandlerWrapScript, info.button, "OnClick", header, PRE_CLICK, POST_CLICK);
 			if ok then

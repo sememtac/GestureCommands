@@ -127,7 +127,8 @@ function M.new()
 		for _, key in ipairs({ "topBar", "leftBar", "rightBar", "bottomBar", "stanceBar", "possessBar" }) do
 			local bar = { buttons = {} }
 			for i = 1, 8 do
-				local b = W.CreateFrame("CheckButton", nil, nil)
+				-- Named like Blizzard's (<bar>ActionButton1..8); paging changes their IDs, not the frames.
+				local b = W.CreateFrame("CheckButton", key .. "ActionButton" .. i, nil)
 				b.blizzard, b.protected, b.id = true, true, nextID
 				nextID = nextID + 1
 				b.icon = b:CreateTexture()

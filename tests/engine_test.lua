@@ -159,16 +159,28 @@ click(B[5], "LeftButton", true); click(B[5], "LeftButton", false)
 for _ = 1, 2 do tick(); poll() end
 click(B[1], "LeftButton", false); poll()
 check(world.casts[1] == "slot:spell:331" and world.casts[2] == "spell:Totemic Recall", "another button mid-hold: it casts, and the hold still casts")
--- The crossbar page changes mid-hold: the release arrives at the button now in the pressed one's place.
+-- Switching bars mid-hold (L1 / R1): the release arrives at the other bar's button in the same place.
 local samePlace = bars.rightBar.buttons[1]
-check(header.attrs["pos:" .. B[1].id] == 1 and header.attrs["pos:" .. samePlace.id] == 1, "crossbar positions published")
+check(header.attrs["pos:" .. B[1].name] == 1 and header.attrs["pos:" .. samePlace.name] == 1, "crossbar positions published")
 world.casts = {}
 click(B[1], "LeftButton", true)
 for _ = 1, 4 do tick(); poll() end
 click(samePlace, "LeftButton", false); poll()
-check(#world.casts == 0 and header.attrs.armed == 0, "page changed mid-hold: the press is dropped")
+check(#world.casts == 0 and header.attrs.armed == 0, "bar switched mid-hold: the press is dropped")
 press(B[1], 1)
 check(last() == "slot:spell:66842", "...and the next tap works")
+-- Changing page mid-hold: the same button frames get the other page's slots (SetID), so the release comes
+-- from the pressed frame with a slot never seen before.
+local pagedFrom = B[1].id
+world.casts = {}
+click(B[1], "LeftButton", true)
+for _ = 1, 4 do tick(); poll() end
+B[1].id = 999
+click(B[1], "LeftButton", false); poll()
+B[1].id = pagedFrom
+check(#world.casts == 0 and header.attrs.armed == 0, "page changed mid-hold: the press is dropped")
+for _ = 1, 8 do tick(); poll() end
+check(header.attrs.armed == 0, "...and nothing arms after the release")
 
 -- Only a long hold: short holds stay taps.
 call(ns.SetGestureAction, stone, "hold", nil)
@@ -413,6 +425,7 @@ call(ns.StartPlacing, 1)
 world.timers = {} -- not the timeout
 world.combat = true
 call(ns.CancelPlacing)
+check(notified[#notified][1] == false, "cancelled in combat: the banner goes at once")
 world.combat = false
 fire("PLAYER_REGEN_ENABLED"); runTimers()
 check(not ns.IsPlacing() and header.attrs.placing == false, "cancelled in combat: cancelled once combat ends")

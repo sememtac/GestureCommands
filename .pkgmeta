@@ -1,4 +1,4 @@
-Package-as: GestureCommands
+package-as: GestureCommands
 
 manual-changelog: CHANGELOG.md
 

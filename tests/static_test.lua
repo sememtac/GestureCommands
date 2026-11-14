@@ -39,6 +39,11 @@ for _, file in ipairs(files) do
 	check(listed[file], "listed in the TOC: " .. file)
 end
 
+-- The packager (BigWigsMods/packager) matches .pkgmeta keys exactly.
+local pkgmeta = H.read(H.root .. "/.pkgmeta"):gsub("\r\n", "\n")
+check(pkgmeta:match("^package%-as: " .. H.ADDON .. "\n") ~= nil, ".pkgmeta: package-as (lowercase key)")
+check(pkgmeta:find("\n  %- tests\n") ~= nil and pkgmeta:find("\n  %- TESTPLAN%.md\n") ~= nil, ".pkgmeta: tests and the test plan stay out of the package")
+
 -- ---- syntax (the game runs Lua 5.1) --------------------------------------------------------------
 for _, file in ipairs(files) do
 	local ok, err = loadfile(H.root .. "/" .. file)

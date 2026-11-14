@@ -45,7 +45,11 @@ function ns.CancelPlacing(quiet)
 		return;
 	end
 	if InCombatLockdown() then
-		-- Can't change the secure state in combat: cancel when it ends.
+		-- Can't change the secure state in combat: cancel when it ends. No press binds in combat anyway,
+		-- so the banner goes now.
+		if ns.OnPlacingChanged then
+			ns.OnPlacingChanged(nil);
+		end
 		local token = placing.token;
 		ns.AfterCombat(function()
 			if placing and placing.token == token then
