@@ -59,24 +59,9 @@ header:SetAttribute("_onstate-tick", [[
 
 -- Runs before Blizzard's OnClick on every wrapped crossbar button. Triggers are looked up by what the slot
 -- shows: "g:spell:<id>" / "g:item:<id>" hold the gesture number (a macro counts as the spell/item it shows).
+-- Blizzard's snippet compiler rejects any snippet that contains the word "function" or a brace, even in a
+-- comment, so the slot lookup below is written out twice rather than shared.
 local PRE_CLICK = [[
-	-- The gesture a slot holds: by its number (a mount, toy or macro Tap), else by what it shows (a spell or
-	-- item; a macro counts as what it shows).
-	local function GestureAt(slot)
-		local gesture = control:GetAttribute("g:slot:" .. slot);
-		if gesture then
-			return gesture;
-		end
-		local kind, id, subType = GetActionInfo(slot);
-		if kind == "macro" then
-			kind = subType;
-		end
-		if (kind == "spell" or kind == "item") and id then
-			return control:GetAttribute("g:" .. kind .. ":" .. id);
-		end
-		return nil;
-	end
-
 	-- Place mode: the next crossbar press only says where to put a gesture. Not in combat: there every press
 	-- does its action, and the gesture waits for a press after the fight.
 	if control:GetAttribute("placing") and SecureCmdOptionParse("[combat] 1; 0") ~= "1" then
@@ -104,7 +89,18 @@ local PRE_CLICK = [[
 		if slot <= 0 then
 			return;
 		end
-		local gesture = GestureAt(slot);
+		-- The gesture this slot holds: by its number (a mount, toy or macro Tap), else by what it shows (a
+		-- spell or item; a macro counts as what it shows).
+		local gesture = control:GetAttribute("g:slot:" .. slot);
+		if not gesture then
+			local kind, id, subType = GetActionInfo(slot);
+			if kind == "macro" then
+				kind = subType;
+			end
+			if (kind == "spell" or kind == "item") and id then
+				gesture = control:GetAttribute("g:" .. kind .. ":" .. id);
+			end
+		end
 		if not gesture then
 			return;
 		end
@@ -133,8 +129,18 @@ local PRE_CLICK = [[
 	end
 	pressedSlot = nil;
 
-	-- The slot must still hold this gesture's Tap.
-	if GestureAt(slot) ~= gesture then
+	-- The slot must still hold this gesture's Tap (the same lookup as on the press).
+	local current = control:GetAttribute("g:slot:" .. slot);
+	if not current then
+		local kind, id, subType = GetActionInfo(slot);
+		if kind == "macro" then
+			kind = subType;
+		end
+		if (kind == "spell" or kind == "item") and id then
+			current = control:GetAttribute("g:" .. kind .. ":" .. id);
+		end
+	end
+	if current ~= gesture then
 		return false;
 	end
 
