@@ -1,1 +1,2 @@
 *.tga binary
+*.sh text eol=lf

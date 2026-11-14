@@ -69,8 +69,9 @@ end);
 -------------------------------------------------------------------------------
 -- Secure snippets. Blizzard compiles them with BuildRestrictedClosure, which refuses a body that contains the
 -- word "function" or a brace anywhere, even in a comment, and code that fails there fails silently in game
--- (1.0.1 shipped like that). Every snippet goes through ns.Snippet, named after the attribute or script it
--- is for, so a bad one is reported as soon as the addon loads, and tests can check them all.
+-- (an early 1.0.1 build couldn't bind because of it). Every snippet goes through ns.Snippet, named after the
+-- attribute or script it is for, so a bad one is reported as soon as the addon loads, and tests can check
+-- them all.
 -------------------------------------------------------------------------------
 
 ns.snippets = {}; -- { name = ..., body = ... } in load order

@@ -4,4 +4,6 @@ manual-changelog: CHANGELOG.md
 
 ignore:
   - README.md
+  - TESTPLAN.md
+  - Engine/API.md
   - tests

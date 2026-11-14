@@ -92,6 +92,18 @@ Everything that casts runs in the game's secure environment: each crossbar butto
 Blizzard's `SecureHandlerWrapScript` and the press/release decision is made there. The addon never changes
 Blizzard's settings or code, so it doesn't cause "action blocked" errors.
 
+## Development
+
+| Folder | |
+|---|---|
+| `Core/` | Namespace, event hub, combat queue, the secure snippet check, saved data and its migrations |
+| `Engine/` | The secure engine and what configures it; `Engine/ActionKinds.lua` is where a new kind of action goes; `Engine/API.md` lists what the UI may use |
+| `UI/` | The window, picker, controller navigation (one file per mode), banner, minimap button, menu dial entry |
+| `tests/` | Test suites and the test world built from Blizzard's source; see [TESTPLAN.md](TESTPLAN.md) |
+
+Run the tests with `tests/run.ps1` or `tests/run.sh` (LuaJIT, or Neovim's `nvim -l`). Secure snippets must
+not contain the word "function" or braces, even in comments: Blizzard refuses them, and the tests check it.
+
 ## License
 
 [MIT](LICENSE)
