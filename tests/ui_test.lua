@@ -9,9 +9,8 @@ local check, fire, runTimers = H.check, world.fire, world.runTimers
 world.time = 100
 
 -- The UI's files (the engine is faked below).
-local UI_FILES = { ["Navigation.lua"] = true, ["Picker.lua"] = true, ["Config.lua"] = true, ["MinimapButton.lua"] = true, ["RadialEntry.lua"] = true }
 local function isUIFile(file)
-	return file:match("^UI/") ~= nil or UI_FILES[file] == true
+	return file:match("^UI/") ~= nil
 end
 local function templateUsed(name)
 	for _, f in ipairs(W.frames) do if W.hasTemplate(f.template, name) then return true end end

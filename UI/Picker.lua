@@ -1,7 +1,7 @@
 -- Gesture Commands: the picker window, a paged grid of icons used two ways: choosing a gesture's name and
 -- icon (like the macro icon popup), and choosing the spell, item, mount or macro for one of a gesture's
 -- slots without dragging (a controller can't put anything on the cursor). Plain buttons only, so the
--- controller reaches everything; it opens as a popup of the setup window (see Navigation.lua).
+-- controller reaches everything; it opens as a popup of the setup window (see UI/Navigation.lua).
 
 local _, ns = ...;
 

@@ -5,7 +5,7 @@
 -- Editing is locked in combat because the secure configuration can only change out of combat.
 --
 -- Controller: the window joins Blizzard's gamepad UI like its own panels (LT / RT, View, A, B), or uses
--- our own D-pad navigation with `/gestures padnav own`; see Navigation.lua.
+-- our own D-pad navigation with `/gestures padnav own`; see UI/Navigation.lua.
 
 local _, ns = ...;
 
@@ -265,54 +265,6 @@ local function AdjustTicks(key, delta)
 	end
 	ns.Publish();
 end
-
--------------------------------------------------------------------------------
--- Bind banner: shown while Bind waits for a crossbar press
--------------------------------------------------------------------------------
-
-local banner;
-
-local function ShowBindBanner(gesture, endsAt)
-	if not gesture then
-		if banner then
-			banner:Hide();
-		end
-		return;
-	end
-	if not banner then
-		banner = CreateFrame("Frame", nil, UIParent);
-		banner:SetSize(470, 74);
-		banner:SetPoint("TOP", 0, -140);
-		banner:SetFrameStrata("DIALOG");
-		local background = banner:CreateTexture(nil, "BACKGROUND");
-		background:SetAllPoints();
-		background:SetColorTexture(0, 0, 0, 0.65);
-		banner.Icon = banner:CreateTexture(nil, "ARTWORK");
-		banner.Icon:SetSize(44, 44);
-		banner.Icon:SetPoint("LEFT", 12, 0);
-		banner.Title = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge");
-		banner.Title:SetPoint("TOPLEFT", banner.Icon, "TOPRIGHT", 12, 2);
-		banner.Footer = ns.Nav.CreatePromptFooter(banner);
-		banner.Footer:SetPoint("LEFT", banner.Icon, "RIGHT", 12, -2);
-		banner.Footer:SetPrompts({ { GAMEPAD_SHOULDER_LEFT, "+" }, { GAMEPAD_SHOULDER_RIGHT, "+" },
-			{ GAMEPAD_DPAD_LEFT, "/" }, { GAMEPAD_DPAD_RIGHT, "Change page" } });
-		banner.Hint = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall");
-		banner.Hint:SetPoint("BOTTOMLEFT", banner.Icon, "BOTTOMRIGHT", 12, -4);
-		banner:SetScript("OnUpdate", function(self)
-			local secondsLeft = math.max(0, math.ceil(self.endsAt - GetTime()));
-			if secondsLeft ~= self.secondsLeft then
-				self.secondsLeft = secondsLeft;
-				self.Hint:SetText(("Open /gestures to cancel.  %d s"):format(secondsLeft));
-			end
-		end);
-	end
-	banner.Icon:SetTexture(ns.GetGestureIcon(gesture));
-	banner.Title:SetText(("Bind %s: press its crossbar button"):format(ns.GetGestureName(gesture)));
-	banner.endsAt = endsAt;
-	banner.secondsLeft = nil;
-	banner:Show();
-end
-ns.OnPlacingChanged = ShowBindBanner;
 
 -------------------------------------------------------------------------------
 -- Window
@@ -582,44 +534,15 @@ function ns.ToggleConfig()
 	frame:SetShown(not frame:IsShown());
 end
 
--- Key binding (Bindings.xml): Options > Keybindings > AddOns.
-BINDING_HEADER_GESTURECOMMANDS = "Gesture Commands";
-BINDING_NAME_GESTURECOMMANDS_TOGGLE = "Open / close the setup window";
-function GestureCommands_ToggleConfig()
-	ns.ToggleConfig();
-end
-
 function ns.CloseConfig()
 	if frame and frame:IsShown() then
 		frame:Hide();
 	end
 end
 
--- Settings > AddOns entry: a button that opens the window.
-local function RegisterSettings()
-	if not (Settings and Settings.RegisterCanvasLayoutCategory) then
-		return;
+-- Opens the window unless it is open.
+function ns.OpenConfig()
+	if not (frame and frame:IsShown()) then
+		ns.ToggleConfig();
 	end
-	local panel = CreateFrame("Frame");
-	local text = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight");
-	text:SetPoint("TOPLEFT", 16, -16);
-	text:SetText("Gesture Commands: tap, hold and long-hold gestures for the gamepad crossbar.");
-	local open = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate");
-	open:SetSize(200, 24);
-	open:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -12);
-	open:SetText("Open Gesture Commands");
-	-- Opens on top of the Settings panel (DIALOG strata); closing Settings from addon code would run
-	-- Blizzard's panel manager tainted.
-	open:SetScript("OnClick", function()
-		if not (frame and frame:IsShown()) then
-			ns.ToggleConfig();
-		end
-	end);
-	panel.OnCommit = function() end;
-	panel.OnDefault = function() end;
-	panel.OnRefresh = function() end;
-	local category = Settings.RegisterCanvasLayoutCategory(panel, "Gesture Commands");
-	Settings.RegisterAddOnCategory(category);
 end
-
-RegisterSettings();

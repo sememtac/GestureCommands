@@ -6,10 +6,9 @@ local world = dofile(lib .. "world.lua").new()
 local W = world.W
 local check = H.check
 
--- The engine's files (everything but the setup window and other UI).
-local UI_FILES = { ["Navigation.lua"] = true, ["Picker.lua"] = true, ["Config.lua"] = true, ["MinimapButton.lua"] = true, ["RadialEntry.lua"] = true }
+-- The engine's files: everything but the UI.
 local function isEngineFile(file)
-	return not file:match("^UI/") and not UI_FILES[file]
+	return not file:match("^UI/")
 end
 
 -- ---- game data ---------------------------------------------------------------------------------
