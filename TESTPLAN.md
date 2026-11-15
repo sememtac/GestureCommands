@@ -61,6 +61,8 @@ For a Tap of each kind (spell, item, toy, mount, macro that casts a spell, macro
 
 - [ ] Picker, Spells: your profession skills (Fishing, Cooking, First Aid, gathering) are listed and cast
       as a Tap or hold. **verify**
+- [ ] Picker, Items: a quest item you use on something, and one that begins a quest, are listed; a
+      collected quest item isn't. **verify**
 - [ ] Picker, Items: a fishing pole in the bags (and the weapon in your hands) is listed; as a Hold, it
       equips the pole. **verify**
 

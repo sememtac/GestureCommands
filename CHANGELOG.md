@@ -11,7 +11,8 @@
 - The picker's Spells list also has profession skills (Fishing, Cooking, First Aid, Find Herbs...), which
   are in the Professions book rather than the spellbook.
 - The picker's Items list also has equippable items - a fishing pole, a weapon to swap to - and the
-  weapons in your hands. Using one equips it.
+  weapons in your hands. Using one equips it. And quest items that begin a quest, alongside quest items
+  with a Use effect, which were already there.
 - Updating keeps your setup: gestures stay on every button that holds their Tap now. To make one of those a
   plain spell, put something else on it, then put the spell back.
 

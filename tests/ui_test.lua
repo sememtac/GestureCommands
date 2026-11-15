@@ -112,9 +112,10 @@ C_SpellBook = {
 	GetSpellBookItemInfo = function(i) return book[i] or professionBook[i] end,
 }
 C_Item = {
-	GetItemSpell = function(id) if id == 5512 or id == 6948 then return "Use", 1 end end,
+	GetItemSpell = function(id) if id == 5512 or id == 6948 or id == 5880 then return "Use", 1 end end,
 	GetItemNameByID = function(id) return ({ [5512] = "Healthstone", [6948] = "Hearthstone", [2589] = "Linen Cloth",
-		[6256] = "Fishing Pole", [25] = "Worn Shortsword", [6125] = "Brawler's Harness" })[id] end,
+		[6256] = "Fishing Pole", [25] = "Worn Shortsword", [6125] = "Brawler's Harness",
+		[5099] = "Hoof of Lakota'mani", [5880] = "Torch", [4806] = "Plainstrider Scale" })[id] end,
 	IsEquippableItem = function(id) return id == 6256 or id == 25 or id == 6125 end,
 	GetItemIconByID = function(id) return 2000 + id end,
 }
@@ -123,8 +124,15 @@ function GetInventoryItemID(_, slot) return worn[slot] end
 function GetInventoryItemTexture() return nil end
 local bagItems = { { itemID = 5512, iconFileID = 3001 }, { itemID = 2589, iconFileID = 3002 }, { itemID = 6948, iconFileID = 3003 } }
 C_Container = {
-	GetContainerNumSlots = function(bag) return bag == 0 and 4 or 0 end,
+	GetContainerNumSlots = function(bag) return bag == 0 and 7 or 0 end,
 	GetContainerItemInfo = function(bag, slot) return bagItems[slot] end,
+	-- Quest items: questID when using the item begins a quest.
+	GetContainerItemQuestInfo = function(bag, slot)
+		local info = bagItems[slot]
+		local quest = info and ({ [5099] = { isQuestItem = true, questID = 883, isActive = false },
+			[5880] = { isQuestItem = true }, [4806] = { isQuestItem = true } })[info.itemID]
+		return quest or { isQuestItem = false }
+	end,
 }
 C_MountJournal = {
 	GetMountIDs = function() return { 6, 7 } end,
@@ -238,6 +246,12 @@ check(cellNames() == "Worn Shortsword,Healthstone,Hearthstone,Fishing Pole",
 	"items: also equippable ones in the bags and the weapons you hold, not worn armour (" .. cellNames() .. ")")
 bagItems[4] = nil
 worn[5], worn[16] = nil, nil
+-- Quest items you can use: one that begins a quest, one with a Use effect; not one you only collect.
+bagItems[5], bagItems[6], bagItems[7] = { itemID = 5099, iconFileID = 3005 }, { itemID = 5880, iconFileID = 3006 }, { itemID = 4806, iconFileID = 3007 }
+chooseTab("Spells"); chooseTab("Items")
+check(cellNames() == "Healthstone,Hearthstone,Hoof of Lakota'mani,Torch",
+	"items: quest items you can use (one that begins a quest, one with a Use effect), not collected ones (" .. cellNames() .. ")")
+bagItems[5], bagItems[6], bagItems[7] = nil, nil, nil
 chooseTab("Spells"); chooseTab("Items")
 chooseTab("Mounts")
 check(cellNames() == "Brown Horse", "mounts: collected only")

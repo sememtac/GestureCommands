@@ -96,20 +96,25 @@ local function GetSpellEntries()
 	return entries;
 end
 
--- Equipped and carried items with a Use effect.
--- Items that do something when used: those with a Use effect, and equippable ones in the bags (using one
--- equips it: a fishing pole, a weapon to swap to). Of what's worn, the weapons too, as the pole may be in
--- your hands now; worn armour does nothing when used.
+-- Items that do something when used: those with a Use effect (quest items you use on something too), and in
+-- the bags, equippable ones (using one equips it: a fishing pole, a weapon to swap to) and ones that begin a
+-- quest. Of what's worn, the weapons too, as the pole may be in your hands now; worn armour does nothing when
+-- used, and neither does a quest item you only collect.
 local WEAPON_SLOTS = { [INVSLOT_MAINHAND or 16] = true, [INVSLOT_OFFHAND or 17] = true, [INVSLOT_RANGED or 18] = true };
 
 local function IsEquippable(itemID)
 	return C_Item.IsEquippableItem ~= nil and C_Item.IsEquippableItem(itemID) and true or false;
 end
 
+local function BeginsQuest(bag, slot)
+	local questInfo = C_Container.GetContainerItemQuestInfo and C_Container.GetContainerItemQuestInfo(bag, slot);
+	return questInfo ~= nil and questInfo.questID ~= nil;
+end
+
 local function GetItemEntries()
 	local entries, seen = {}, {};
-	local function Add(itemID, icon, equipping)
-		if itemID and (C_Item.GetItemSpell(itemID) or equipping) then
+	local function Add(itemID, icon, usable)
+		if itemID and (C_Item.GetItemSpell(itemID) or usable) then
 			local name = C_Item.GetItemNameByID(itemID);
 			AddUnique(entries, seen, itemID, { icon = icon or C_Item.GetItemIconByID(itemID), name = name,
 				action = { kind = "item", id = itemID, name = name } });
@@ -122,7 +127,7 @@ local function GetItemEntries()
 		for slot = 1, C_Container.GetContainerNumSlots(bag) do
 			local info = C_Container.GetContainerItemInfo(bag, slot);
 			if info then
-				Add(info.itemID, info.iconFileID, IsEquippable(info.itemID));
+				Add(info.itemID, info.iconFileID, IsEquippable(info.itemID) or BeginsQuest(bag, slot));
 			end
 		end
 	end
