@@ -6,6 +6,7 @@
 ## SavedVariablesPerCharacter: GestureCommandsCharDB
 ## X-License: MIT
 ## X-Website: https://github.com/sememtac/GestureCommands
+## X-Curse-Project-ID: 1796910
 ## IconTexture: Interface\AddOns\GestureCommands\Icon
 ## AddonCompartmentFunc: GestureCommands_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: GestureCommands_OnAddonCompartmentEnter
