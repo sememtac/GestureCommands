@@ -63,7 +63,11 @@ function M.new()
 
 	-- Cursor and action slots
 	function GetCursorInfo() if world.cursor then return unpack(world.cursor) end end
-	function ClearCursor() world.cursor = nil end
+	function ClearCursor()
+		local had = world.cursor ~= nil
+		world.cursor = nil
+		if had then W.fireEvent("CURSOR_CHANGED") end -- synchronous in the game
+	end
 	function GetActionInfo(slot) local a = world.actions[slot]; if a then return a[1], a[2], a[3] end end
 
 	-- Secure templates and drivers

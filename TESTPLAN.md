@@ -59,6 +59,15 @@ For a Tap of each kind (spell, item, toy, mount, macro that casts a spell, macro
 
 ### Bind
 
+- [ ] Bind a gesture with Bind, and with a mouse drag from the list: those buttons show the gesture's icon and
+      do its holds.
+- [ ] Put the gesture's Tap spell on another button from the spellbook or the game's bind screen: that
+      button shows the spell's own icon and casts on press, no hold.
+- [ ] Move a bound button's action with the crossbar's edit mode: the gesture moves with it. **verify**
+- [ ] Switch talent spec and back (if your character has two): bound gestures work again on return. **verify**
+- [ ] Update from 1.0.x on a character with gestures set up: every button that held a Tap is still the
+      gesture. **verify**
+
 - [ ] Controller: Bind, press a button on another bar and on another page: the Tap goes there, "placed",
       nothing cast.
 - [ ] Bind with the mouse: click a crossbar button: the Tap goes there and nothing is cast. **verify**

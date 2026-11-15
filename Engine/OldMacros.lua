@@ -30,6 +30,9 @@ local function RemoveOldGestureMacros()
 							(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
 						end
 						ClearCursor();
+						if Engine.SlotHoldsTrigger(slot, trigger) then
+							Engine.BindGestureSlot(gesture, slot);
+						end
 						-- Still the macro: the Tap couldn't go there (e.g. an item not in the bags). Keep it.
 						if GetActionInfo(slot) == "macro" and Engine.GetSlotActionText(slot) == name then
 							kept = true;

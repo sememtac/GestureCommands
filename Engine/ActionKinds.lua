@@ -10,13 +10,9 @@
 --   IsAvailable(action)   -> whether it still exists for this character (optional; default yes)
 --   Shows(action)         -> the spell or item action it stands for, if any (optional)
 --   canTap                -> it can be a gesture's Tap
--- and, to be a Tap, one way for the secure code to find the crossbar slots that hold it:
---   ContentKeys(action, scan, keys) adds "spell:<id>" / "item:<id>" keys: the secure code looks a pressed
---                            slot up by what it shows (GetActionInfo; a macro counts as what it shows).
---   SlotHolds(action, slot, context) -> whether a slot (an ActionSlots scan entry) holds it. These Taps are
---                            published by slot number, for kinds the secure code can't see: the game hides
---                            mount and toy IDs from it, and a macro shows only what it casts.
---                            SlotContext(action), if any, computes `context` once per scan.
+--   SlotHolds(action, slot, context) -> whether an action slot (Engine.ReadSlot) holds it, for a Tap: a
+--                            gesture is on the slots it was bound to while they still hold its Tap.
+--                            SlotContext(action), if any, computes `context` for checking many slots.
 
 local _, ns = ...;
 local Engine = ns.Engine;
@@ -49,23 +45,12 @@ Register("spell", {
 	Shows = function(action)
 		return action;
 	end,
-	-- Ranked spells have one ID per rank, so any action slot showing a spell with the Tap's name counts, as
-	-- do the Tap's own ID and the highest known rank.
-	ContentKeys = function(action, scan, keys)
-		keys["spell:" .. action.id] = true;
-		local name = C_Spell.GetSpellName(action.id) or action.name;
-		if not name then
-			return;
-		end
-		local info = C_Spell.GetSpellInfo(name);
-		if info and info.spellID then
-			keys["spell:" .. info.spellID] = true;
-		end
-		for _, slot in pairs(scan.slots) do
-			if slot.shows == "spell" and slot.id and scan:SpellName(slot.id) == name then
-				keys["spell:" .. slot.id] = true;
-			end
-		end
+	-- Any rank: ranked spells have one ID per rank, and learning a rank can change the one on the bar.
+	SlotContext = function(action)
+		return C_Spell.GetSpellName(action.id) or action.name;
+	end,
+	SlotHolds = function(action, slot, name)
+		return slot.shows == "spell" and slot.id ~= nil and (slot.id == action.id or (name ~= nil and C_Spell.GetSpellName(slot.id) == name));
 	end,
 });
 
@@ -86,8 +71,8 @@ Register("item", {
 	Shows = function(action)
 		return action;
 	end,
-	ContentKeys = function(action, _, keys)
-		keys["item:" .. action.id] = true;
+	SlotHolds = function(action, slot)
+		return slot.shows == "item" and slot.id == action.id;
 	end,
 });
 
@@ -244,39 +229,38 @@ function ns.MakeTrigger(action)
 	return kind and kind.canTap and action or nil;
 end
 
--- Every key the secure code finds this Tap by, from an ActionSlots scan: "slot:<n>" for each slot holding a
--- slot-keyed Tap (if it still exists), else "spell:<id>" / "item:<id>" for what slots holding it show.
-function Engine.GetTriggerKeys(trigger, scan)
-	local keys = {};
+-- Whether a slot (Engine.ReadSlot, nil if empty) holds this Tap. `context` is the kind's SlotContext, if
+-- already computed (for checking many slots).
+function Engine.SlotHolds(trigger, slot, context)
 	local kind = KINDS[trigger.kind];
-	if not kind then
-		return keys;
-	end
-	if kind.SlotHolds then
-		if not Engine.IsAvailable(trigger) then
-			return keys;
-		end
-		local context = kind.SlotContext and kind.SlotContext(trigger);
-		for slot, info in pairs(scan.slots) do
-			if kind.SlotHolds(trigger, info, context) then
-				keys["slot:" .. slot] = true;
-			end
-		end
-	else
-		kind.ContentKeys(trigger, scan, keys);
-	end
-	return keys;
-end
-
--- Whether an action slot holds this Tap now, as the secure code would find it there.
-function Engine.SlotHoldsTrigger(slot, trigger)
-	local scan = Engine.ScanActionSlots(slot);
-	local info = scan.slots[slot];
-	if not info then
+	if not (slot and kind and kind.SlotHolds) then
 		return false;
 	end
-	local keys = Engine.GetTriggerKeys(trigger, scan);
-	return keys["slot:" .. slot] or (info.shows ~= nil and info.id ~= nil and keys[info.shows .. ":" .. info.id]) or false;
+	if context == nil and kind.SlotContext then
+		context = kind.SlotContext(trigger);
+	end
+	return kind.SlotHolds(trigger, slot, context) and true or false;
+end
+
+-- Whether an action slot holds this Tap now.
+function Engine.SlotHoldsTrigger(slot, trigger)
+	return Engine.SlotHolds(trigger, Engine.ReadSlot(slot));
+end
+
+-- Whether the cursor holds this Tap (picked up from a slot or a window).
+function Engine.CursorHoldsTrigger(trigger)
+	local action = ns.ReadCursor();
+	if not action or not trigger then
+		return false;
+	end
+	if trigger.kind == "spell" and action.kind == "spell" then
+		return action.id == trigger.id or (action.name ~= nil and action.name == (C_Spell.GetSpellName(trigger.id) or trigger.name));
+	elseif (trigger.kind == "item" or trigger.kind == "toy") and (action.kind == "item" or action.kind == "toy") then
+		return action.id == trigger.id;
+	elseif trigger.kind == "macro" then
+		return action.kind == "macro" and action.name == trigger.name;
+	end
+	return action.kind == trigger.kind and action.id == trigger.id;
 end
 
 -- Reads the cursor into an action (nil and the cursor type if it holds something else).

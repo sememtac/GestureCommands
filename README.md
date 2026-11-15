@@ -25,9 +25,9 @@ icon and cooldown, and every other button works exactly as before.
    macros, or drag something onto it:
    - **Tap**: a spell, item, toy, mount or macro. A tap casts or uses it, and it's what goes on the crossbar.
    - **Hold** and **Long hold**: whatever you want those to cast.
-3. Optional: **Name & icon** (or click the gesture's icon). Both show on the crossbar buttons that hold the
-   gesture's Tap - the name as the button's text line, like a macro's (cooldowns and range / mana colouring
-   stay as usual).
+3. Optional: **Name & icon** (or click the gesture's icon). Both show on the crossbar buttons the gesture is
+   bound to - the name as the button's text line, like a macro's (cooldowns and range / mana colouring stay
+   as usual).
 4. **Bind**: with a controller, the window closes - press the crossbar button you want the gesture on (L1 / R1
    for the other bars, both shoulders + D-pad left / right for another page; nothing is cast by that press).
    A banner shows what you're binding and the time left (60 s); open `/gestures` to cancel. In combat your
@@ -35,9 +35,12 @@ icon and cooldown, and every other button works exactly as before.
    gesture from the list) puts its Tap on your cursor to drop on a crossbar slot.
 5. Press **Test** to check your setup. Gesture Commands is on by default; untick **Enabled** to switch it off.
 
-Gesture Commands doesn't create macros. Any crossbar slot that holds the gesture's Tap - the spell or item,
-or your macro - is the gesture, however it got there, and shows the gesture's name and icon if you chose
-them.
+A gesture is on the buttons you bind it to, with Bind or by dragging it from the list. The same spell, item
+or macro put on another button some other way - from the spellbook, your bags, or the game's own bind
+screen - is just that: its own icon, cast on press, no hold. So one spell can be a gesture on one button and
+a plain spell on another, and two gestures can share a Tap on different buttons. Moving a bound button's
+action to another slot (with the cursor, or the crossbar's edit mode) takes the gesture with it; putting
+something else on it unbinds it. Gesture Commands doesn't create macros.
 
 ### With a controller
 
@@ -51,9 +54,6 @@ another window is still open, press View first). Naming a gesture needs a keyboa
 on-screen keyboard); it starts with the Tap action's name, so you only need to type for a different one.
 
 The window closes when you enter combat (editing is locked in combat anyway).
-
-The game's own bind screen works too: bind the Tap spell from the spellbook, the item from your bags, or
-your macro from the Macros window (X).
 
 If the game ever shows "Gesture Commands: Blizzard blocked ..." while you use the window, type
 `/gestures padnav own`: the window then uses its own navigation instead (the D-pad moves a yellow
@@ -76,8 +76,8 @@ highlight, A selects, X clears a box, B closes; LT / RT don't reach it) - and pl
 ## Good to know
 
 - **Crossbar only**: it works with the gamepad crossbar (all bars and pages), not keyboard action bars.
-- **One gesture per Tap**: the same spell on two slots shares the same gesture, and every rank of a
-  spell counts as the same Tap.
+- **Gestures are on the buttons you bind them to**: the same spell elsewhere is just the spell. A new rank
+  of the Tap replacing it on a bound button keeps the gesture.
 - **Taps act on release**, so a tap has a tiny delay compared with a normal button.
 - **Hold timing is approximate**: secure game code has no clock, so holds are counted in game updates of
   about 0.2 s and can arm slightly early in very busy combat.

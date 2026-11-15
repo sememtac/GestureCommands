@@ -2,7 +2,9 @@
 --
 -- GestureCommandsCharDB = {
 --     version = 1,                 -- schema version (MIGRATIONS below)
---     gestures = { gesture, ... }, -- gesture = { trigger = action, hold = action, long = action, name = string, icon = fileID }
+--     gestures = { gesture, ... }, -- gesture = { trigger = action, hold = action, long = action, name = string, icon = fileID,
+--                                  --             slots = { [action slot] = true } } (the slots it's bound to;
+--                                  --             nil on gestures from before 1.1.0 until GestureSlots.lua records them)
 --                                  -- action = { kind = "spell"|"item"|"toy"|"mount"|"macro", id = number, name = string }
 --     enabled = false,             -- only when turned off (on by default)
 --     holdTicks, hold2Ticks,       -- only when changed from the defaults

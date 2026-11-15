@@ -1,7 +1,7 @@
--- Putting a gesture on the crossbar: its Tap action goes on a crossbar slot, and that slot then has the
--- gesture. With a mouse the Tap is put on the cursor (PickupGesture). With a controller there is no way to
--- drop a cursor action on the crossbar, so in place mode the next crossbar press (caught and swallowed by the
--- secure hook) picks the slot and the Tap is put there out of combat. Place mode times out if no crossbar
+-- Putting a gesture on the crossbar: its Tap action goes on a crossbar slot, and that slot is then bound to
+-- the gesture (GestureSlots.lua). With a mouse the Tap is put on the cursor (PickupGesture). With a
+-- controller there is no way to drop a cursor action on the crossbar, so in place mode the next crossbar
+-- press (caught and swallowed by the secure hook) picks the slot and the Tap is put there out of combat. Place mode times out if no crossbar
 -- button is pressed; the setup window shows a banner meanwhile (ns.OnPlacingChanged).
 
 local _, ns = ...;
@@ -21,7 +21,9 @@ function ns.PickupGesture(index)
 		return false;
 	end
 	local ok, message = Engine.PickupAction(trigger);
-	if not ok and message then
+	if ok then
+		Engine.ExpectDrop(gesture);
+	elseif message then
 		ns.Print(message);
 	end
 	return ok;
@@ -109,6 +111,8 @@ function ns.FinishPlacing(slot)
 	(C_ActionBar.PutActionInSlot or PlaceAction)(slot);
 	ClearCursor();
 	if Engine.SlotHoldsTrigger(slot, gesture.trigger) then
+		Engine.BindGestureSlot(gesture, slot);
+		ns.Publish();
 		UIErrorsFrame:AddMessage(("%s placed"):format(ns.GetGestureName(gesture)), 0.2, 1, 0.6);
 		Engine.Rumble();
 	else

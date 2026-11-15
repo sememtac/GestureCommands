@@ -44,7 +44,7 @@ Gestures are numbered by their position in `ns.DB().gestures`.
 
 | Name | |
 |---|---|
-| `ns.PickupGesture(index)` | Puts the gesture's Tap on the cursor (mouse). |
+| `ns.PickupGesture(index)` | Puts the gesture's Tap on the cursor (mouse); the slot it's dropped on is bound to the gesture. |
 | `ns.StartPlacing(index)` | Place mode (controller): the next crossbar press picks the slot. |
 | `ns.IsPlacing()`, `ns.CancelPlacing(quiet)` | |
 

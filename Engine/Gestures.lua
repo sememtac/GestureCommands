@@ -1,5 +1,6 @@
--- Gestures: a Tap ("trigger"), optional hold and long-hold actions, and an optional name and icon that label
--- it in the setup window and on the crossbar buttons that hold its Tap (Labels.lua).
+-- Gestures: a Tap ("trigger"), optional hold and long-hold actions, an optional name and icon that label it
+-- in the setup window and on the crossbar buttons it's bound to (Labels.lua), and those slots
+-- (GestureSlots.lua).
 
 local _, ns = ...;
 
@@ -36,6 +37,7 @@ end
 
 function ns.AddGesture(gesture)
 	gesture = gesture or {};
+	gesture.slots = gesture.slots or {};
 	table.insert(ns.DB().gestures, gesture);
 	ns.Publish();
 	return #ns.DB().gestures;

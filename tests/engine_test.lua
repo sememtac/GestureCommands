@@ -59,7 +59,8 @@ C_ActionBar = { PutActionInSlot = function(slot)
 	assert(not world.combat, "placing in combat")
 	local c = world.cursor
 	if c and c[1] == "macro" then
-		world.actions[slot] = { "macro", GetMacroSpell(c[2]), "spell", name = MACROS[c[2]].name }
+		local spell = GetMacroSpell(c[2])
+		world.actions[slot] = spell and { "macro", spell, "spell", name = MACROS[c[2]].name } or { "macro", 0, "", name = MACROS[c[2]].name }
 	elseif c and c[1] == "spell" then
 		world.actions[slot] = { "spell", c[4] }
 	elseif c and c[1] == "item" then
@@ -68,6 +69,9 @@ C_ActionBar = { PutActionInSlot = function(slot)
 		world.actions[slot] = { "summonmount", c[2] }
 	end
 	world.cursor = nil
+	-- As in the game, both synchronous.
+	world.fire("ACTIONBAR_SLOT_CHANGED", slot)
+	world.fire("CURSOR_CHANGED")
 end }
 function C_ActionBar.GetActionTexture(slot)
 	local a = world.actions[slot]
@@ -107,7 +111,35 @@ world.actions[B[4].id] = { "item", 5512 }                 -- Healthstone
 world.actions[B[5].id] = { "spell", 331 }                 -- Healing Wave (no gesture)
 world.actions[60] = { "spell", 403 }                      -- Lightning Bolt rank 1 on a keyboard bar
 
-fire("ADDON_LOADED", "GestureCommands"); fire("PLAYER_LOGIN"); runTimers()
+-- Binds a gesture to a crossbar button as a controller does: Bind, then press the button.
+local function bind(index, button)
+	assert(call(ns.StartPlacing, index), "bind: Bind refused")
+	click(button, "LeftButton", true); poll(); click(button, "LeftButton", false); poll()
+end
+-- Drops what's on the cursor on a slot, as the game does: the slot changes, then the cursor.
+local function dropOn(button)
+	C_ActionBar.PutActionInSlot(button.id)
+	runTimers()
+end
+-- Puts an action on a slot the way a player does outside this addon (the spellbook, bags, the game's bind
+-- screen): through the cursor.
+local function placeOwn(button, action)
+	world.cursor = { "spell", 0, "spell", 0 } -- what's being placed; only that the cursor is busy matters
+	world.actions[button.id] = action
+	fire("ACTIONBAR_SLOT_CHANGED", button.id)
+	world.cursor = nil; fire("CURSOR_CHANGED"); runTimers()
+end
+-- A slot changing by itself, a frame later (another talent spec's bars): no cursor involved.
+local function barsChange(button, action)
+	world.time = world.time + 1
+	world.actions[button.id] = action
+	fire("ACTIONBAR_SLOT_CHANGED", button.id); runTimers()
+	world.time = world.time - 1
+end
+-- After a test only looked at what PickupGesture put on the cursor: the cursor is emptied.
+local function emptyCursor() world.cursor = nil; fire("CURSOR_CHANGED"); runTimers() end
+
+fire("ADDON_LOADED", "GestureCommands"); fire("PLAYER_LOGIN"); fire("PLAYER_ENTERING_WORLD"); runTimers()
 check(header.attrs.enabled == true and next(world.R.wraps) == nil, "fresh install: on by default, but nothing hooked until a gesture exists")
 TotemCommandsHeader = { GetAttribute = function(_, k) if k == "enabled" then return true end end }
 call(ns.Publish)
@@ -125,6 +157,16 @@ check(totems == 1 and bolt == 2 and stone == 3, "three gestures added")
 check(call(ns.SetEnabled, true) and header.attrs.enabled == true, "enabled")
 local hooked = 0; for _ in pairs(world.R.wraps) do hooked = hooked + 1 end
 check(hooked == 36, "36 crossbar/stance buttons hooked")
+check(header.attrs["g:slot:" .. B[1].id] == nil, "a gesture isn't on the crossbar until it's bound (B[1] already holds its Tap)")
+bind(totems, B[1]); bind(bolt, B[2]); bind(stone, B[4])
+check(header.attrs["g:slot:" .. B[1].id] == totems and header.attrs["g:slot:" .. B[2].id] == bolt and header.attrs["g:slot:" .. B[4].id] == stone,
+	"Bind: each gesture is published on the slot it was bound to")
+-- Bars changing by themselves (another talent spec's): the gesture waits on its slot.
+barsChange(B[4], { "spell", 331 })
+check(header.attrs["g:slot:" .. B[4].id] == nil and GestureCommandsCharDB.gestures[stone].slots[B[4].id],
+	"the bound slot shows something else without the player (other spec's bars): inactive, still bound")
+barsChange(B[4], { "item", 5512 })
+check(header.attrs["g:slot:" .. B[4].id] == stone, "...and with its Tap back: the gesture again")
 
 world.casts = {}
 press(B[1], 1); press(B[1], 4); press(B[1], 8)
@@ -135,12 +177,23 @@ check(B[1].attrs.useOnKeyDown == true, "useOnKeyDown restored to Blizzard's valu
 world.casts = {}
 press(B[2], 1); press(B[2], 3); press(B[2], 7)
 check(world.casts[1] == "slot:spell:529" and world.casts[2] == "macro:Panic" and world.casts[3] == "spell:458",
-	"rank 2 on the bar triggers a rank-1 gesture; hold = macro by name, long = mount spell")
-check(header.attrs["g:spell:403"] == 2 and header.attrs["g:spell:529"] == 2, "every rank of the trigger is a key")
+	"bound rank-1 Tap: the highest rank goes on the bar; hold = macro by name, long = mount spell")
+-- Another rank of the Tap replacing the bound one (learning a rank): still the gesture.
+placeOwn(B[2], { "spell", 403 })
+check(header.attrs["g:slot:" .. B[2].id] == bolt, "another rank of the Tap on the bound slot: still the gesture")
+placeOwn(B[2], { "spell", 529 })
 
+-- The Tap put on other slots some other way is just that: cast on press, no hold, its own icon (below).
 world.casts = {}
 press(B[3], 1); press(B[3], 3)
-check(world.casts[1] == "slot:macro:529" and world.casts[2] == "macro:Panic", "a macro showing the spell triggers too; tap runs the macro")
+check(#world.casts == 2 and world.casts[1] == "slot:macro:529" and world.casts[2] == "slot:macro:529",
+	"a macro showing the Tap spell, on its own: casts on press, no hold")
+local ownCopy = bars.topBar.buttons[2]
+placeOwn(ownCopy, { "spell", 66842 })
+world.casts = {}
+press(ownCopy, 4)
+check(#world.casts == 1 and last() == "slot:spell:66842" and header.attrs["g:slot:" .. ownCopy.id] == nil,
+	"the Tap spell placed on its own: casts on press, no hold")
 
 world.casts = {}
 press(B[4], 1); press(B[4], 3); press(B[4], 9)
@@ -190,18 +243,26 @@ press(B[4], 4); press(B[4], 7)
 check(world.casts[1] == "slot:item:5512" and world.casts[2] == "spell:Healing Wave", "long-only gesture: 4 ticks = tap, 7 = long")
 check(rumbles == 1 and messages[1] == "Release for Healing Wave", "feedback names the action that will cast")
 
--- Delete a gesture: its keys are unpublished.
+-- Delete a gesture: its slots are unpublished.
 call(ns.RemoveGesture, bolt)
-check(header.attrs["g:spell:529"] == nil and header.attrs["g:spell:403"] == nil, "deleting a gesture removes its keys")
-check(header.attrs["g:item:5512"] == 2, "remaining gestures renumbered")
+check(header.attrs["g:slot:" .. B[2].id] == nil, "deleting a gesture removes its slots")
+check(header.attrs["g:slot:" .. B[4].id] == 2, "remaining gestures renumbered")
 world.casts = {}
 press(B[2], 4)
 check(#world.casts == 1 and last() == "slot:spell:529", "deleted gesture's trigger behaves normally again")
 
--- Two gestures with the same trigger are flagged.
-call(ns.AddGesture, { trigger = { kind = "spell", id = 66842 } })
-check(ns.conflicts[3] == 1, "duplicate trigger flagged")
-call(ns.RemoveGesture, 3)
+-- Two gestures with the same Tap, bound to different buttons: each is its own.
+local twin = call(ns.AddGesture, { trigger = { kind = "spell", id = 66842 }, hold = { kind = "spell", id = 331 } })
+local twinButton = bars.topBar.buttons[3]
+bind(twin, twinButton)
+world.casts = {}
+press(B[1], 4); press(twinButton, 4)
+check(world.casts[1] == "spell:Totemic Recall" and world.casts[2] == "spell:Healing Wave" and next(ns.conflicts) == nil,
+	"two gestures with the same Tap on different buttons: each casts its own hold")
+bind(twin, B[1])
+check(header.attrs["g:slot:" .. B[1].id] == twin and not GestureCommandsCharDB.gestures[1].slots[B[1].id], "binding a gesture over another's slot takes it over")
+bind(1, B[1])
+call(ns.RemoveGesture, twin); world.actions[twinButton.id] = nil
 
 -- Combat: config changes deferred/refused, gestures keep working.
 world.combat = true
@@ -225,10 +286,12 @@ check(call(ns.SetEnabled, true), "turns on once Totem Commands is off")
 -- Dragging a gesture out of the window picks up its trigger (highest rank for spells).
 local rankIndex = call(ns.AddGesture, { trigger = { kind = "spell", id = 403, name = "Lightning Bolt" } }); world.cursor = nil
 check(call(ns.PickupGesture, rankIndex) and world.cursor[1] == "spell" and world.cursor[4] == 529, "drag gesture: rank-1 trigger is picked up at the highest rank (529)")
+emptyCursor()
 call(ns.RemoveGesture, rankIndex)
 world.cursor = nil
 local stoneIndex; for i, g in ipairs(GestureCommandsCharDB.gestures) do if g.trigger and g.trigger.kind == "item" then stoneIndex = i end end
 check(call(ns.PickupGesture, stoneIndex) and world.cursor[1] == "item" and world.cursor[2] == 5512, "drag gesture: item trigger picks up the item")
+emptyCursor()
 local emptyIndex = call(ns.AddGesture, {}); world.cursor = nil
 check(not call(ns.PickupGesture, emptyIndex) and world.cursor == nil and printed[#printed]:find("Tap first"), "drag gesture without a Tap explains why")
 call(ns.RemoveGesture, emptyIndex)
@@ -263,6 +326,7 @@ call(ns.RemoveGesture, temp)
 check(#MACROS == macroCount and g.macro == nil, "adding, renaming and deleting gestures never touches your macros")
 world.cursor = nil
 check(call(ns.PickupGesture, 1) and world.cursor[1] == "spell" and world.cursor[4] == 66842, "dragging a gesture picks up its Tap spell")
+emptyCursor()
 
 -- ---- the gesture's icon on the crossbar ---------------------------------------------------------------
 local function blizzardUpdate(btn)
@@ -289,12 +353,15 @@ check(B[1].icon.texture == 67842 and B[1].Name.text == "Totems", "icon cleared: 
 call(ns.SetGestureNameIcon, 1, "", nil)
 check(B[1].Name.text == "", "name cleared: no text, as for any spell")
 call(ns.SetGestureNameIcon, 1, "Totems", 136097)
+blizzardUpdate(ownCopy)
+check(ownCopy.icon.texture == 67842 and ownCopy.Name.text == "", "the Tap spell placed on its own shows its own icon and no name, not the gesture's")
 
 -- One of your macros as the Tap: on the crossbar it is the gesture, a tap runs the macro.
 MACROS[#MACROS + 1] = { name = "Heal", icon = 4003, body = "/cast Healing Wave" }; sortMacros()
-world.actions[B[6].id] = { "macro", 331, "spell", name = "Heal" }
 local heal = call(ns.AddGesture, { trigger = { kind = "macro", name = "Heal" }, hold = { kind = "spell", id = 36936 } })
-check(header.attrs["g:slot:" .. B[6].id] == heal and header.attrs["g:spell:331"] == nil, "macro Tap: keyed by the slots holding that macro (not by the spell it shows)")
+bind(heal, B[6])
+check(header.attrs["g:slot:" .. B[6].id] == heal and world.actions[B[6].id][1] == "macro" and world.actions[B[6].id].name == "Heal",
+	"macro Tap: Bind puts your macro on the button, and that slot is the gesture")
 check(ns.GetGestureName(GestureCommandsCharDB.gestures[heal]) == "Heal" and ns.GetGestureIcon(GestureCommandsCharDB.gestures[heal]) == 4003, "macro Tap: the macro's name and icon")
 world.actions[B[6].id] = { "macro", 331, "spell", name = "Heal" }
 call(ns.Publish); world.casts = {}
@@ -302,6 +369,7 @@ press(B[6], 1); press(B[6], 4)
 check(world.casts[1] == "slot:macro:331" and world.casts[2] == "spell:Totemic Recall", "macro Tap on the crossbar: tap runs the macro, hold casts")
 world.cursor = nil
 check(call(ns.PickupGesture, heal) and world.cursor[1] == "macro" and MACROS[world.cursor[2]].name == "Heal", "dragging it picks up your macro")
+emptyCursor()
 -- Your macro deleted: explained, nothing bound.
 table.remove(MACROS, macroIndex("Heal")); world.cursor = nil
 check(not call(ns.PickupGesture, heal) and world.cursor == nil and printed[#printed]:find("doesn't exist any more"), "deleted macro Tap: explained")
@@ -315,11 +383,13 @@ world.combat = false
 
 -- ---- any action as the Tap: mounts, toys, macros that show nothing --------------------------------------
 -- The secure code can't see their IDs, so the slots holding them are published by number.
-world.actions[B[7].id] = { "summonmount", 6 }
-world.actions[B[8].id] = { "macro", 0, "", name = "Panic" }
 local horse = call(ns.AddGesture, { trigger = { kind = "mount", id = 6, name = "Brown Horse" }, hold = { kind = "spell", id = 36936 } })
 local panic = call(ns.AddGesture, { trigger = { kind = "macro", name = "Panic" }, long = { kind = "spell", id = 331 } })
-check(header.attrs["g:slot:" .. B[7].id] == horse and header.attrs["g:slot:" .. B[8].id] == panic, "mount and plain-macro Taps: their slots published")
+call(ns.PickupGesture, horse); dropOn(B[7]) -- dragged out of the window onto the slot (mouse)
+bind(panic, B[8])
+check(world.actions[B[7].id][1] == "summonmount" and world.actions[B[8].id][2] == 0
+	and header.attrs["g:slot:" .. B[7].id] == horse and header.attrs["g:slot:" .. B[8].id] == panic,
+	"mount and plain-macro Taps: dropped or bound on a slot, that slot is the gesture")
 world.casts = {}
 press(B[7], 1); press(B[7], 4)
 check(world.casts[1] == "slot:summonmount:6" and world.casts[2] == "spell:Totemic Recall", "mount Tap: tap summons the mount, hold casts")
@@ -328,6 +398,7 @@ press(B[8], 1); press(B[8], 8)
 check(world.casts[1] == "slot:macro:0" and world.casts[2] == "spell:Healing Wave", "macro that shows nothing: tap runs it, long hold casts")
 world.cursor = nil
 check(call(ns.PickupGesture, horse) and world.cursor[1] == "mount" and world.cursor[2] == 6, "dragging a mount gesture picks up the mount")
+emptyCursor()
 -- Bind a mount gesture with a crossbar press.
 local mountTarget = bars.bottomBar.buttons[5]
 world.actions[mountTarget.id] = nil
@@ -341,13 +412,33 @@ local toy = call(ns.AddGesture, { trigger = { kind = "toy", id = 54452, name = "
 world.cursor = nil
 check(call(ns.PickupGesture, toy) and world.cursor[1] == "item" and world.cursor[2] == 54452, "dragging a toy gesture picks up the toy (from the toy box)")
 local toyTarget = bars.bottomBar.buttons[6]
-world.actions[toyTarget.id] = { "item", 54452 }
-call(ns.Publish)
-check(header.attrs["g:slot:" .. toyTarget.id] == toy, "toy Tap: its slots published")
--- Moved off a slot: no longer the gesture there.
-world.actions[B[7].id] = { "spell", 331 }
-call(ns.Publish)
-check(header.attrs["g:slot:" .. B[7].id] == nil, "the slot now holds something else: unpublished")
+dropOn(toyTarget)
+check(header.attrs["g:slot:" .. toyTarget.id] == toy, "toy Tap: dropped on a slot, that slot is the gesture")
+-- Something else put on a bound slot: it isn't the gesture's any more, even with the Tap put back.
+placeOwn(B[7], { "spell", 331 })
+check(header.attrs["g:slot:" .. B[7].id] == nil and not GestureCommandsCharDB.gestures[horse].slots[B[7].id],
+	"something else put on a bound slot: no longer the gesture's")
+placeOwn(B[7], { "summonmount", 6 })
+check(header.attrs["g:slot:" .. B[7].id] == nil, "...and putting the Tap back there yourself doesn't make it the gesture again")
+
+-- Moving a bound action with the cursor (the crossbar's edit mode does): the gesture goes with it.
+local moveFrom, moveTo = bars.topBar.buttons[3], bars.topBar.buttons[4]
+local mover = call(ns.AddGesture, { trigger = { kind = "spell", id = 331, name = "Healing Wave" }, hold = { kind = "spell", id = 36936 } })
+bind(mover, moveFrom)
+world.cursor = { "spell", 1, "spell", 331 }; world.actions[moveFrom.id] = nil
+fire("ACTIONBAR_SLOT_CHANGED", moveFrom.id)
+dropOn(moveTo)
+check(header.attrs["g:slot:" .. moveTo.id] == mover and header.attrs["g:slot:" .. moveFrom.id] == nil, "a bound action moved with the cursor: the gesture moves with it")
+-- A drag out of the window that was dropped on nothing: placing the Tap yourself later doesn't bind it.
+call(ns.PickupGesture, mover); emptyCursor()
+placeOwn(moveFrom, { "spell", 331 })
+check(header.attrs["g:slot:" .. moveFrom.id] == nil, "a cancelled drag: the Tap placed later is just the spell")
+-- A drag left on the cursor for minutes isn't taken for one either.
+call(ns.PickupGesture, mover); world.time = world.time + 120
+placeOwn(moveFrom, { "spell", 331 }); world.cursor = nil
+world.time = world.time - 120
+check(header.attrs["g:slot:" .. moveFrom.id] == nil, "a drag older than a minute: not a gesture drop")
+call(ns.RemoveGesture, mover); world.actions[moveFrom.id], world.actions[moveTo.id] = nil, nil
 for _, index in ipairs({ toy, panic, horse }) do call(ns.RemoveGesture, index) end
 world.actions[B[7].id], world.actions[B[8].id], world.actions[mountTarget.id], world.actions[toyTarget.id] = nil, nil, nil, nil
 call(ns.Publish)
@@ -481,6 +572,8 @@ local switched = call(ns.SwitchFromTotemCommands)
 local tg = GestureCommandsCharDB.gestures[1]
 check(switched == 1 and tg and tg.trigger.id == 66842 and tg.hold.id == 36936 and tg.long.id == 900001,
 	"switch: the totem gesture (Call of the Elements / Totemic Recall / Totemic Call, ranks by name)")
+check(tg.slots[B[1].id] and tg.slots[ownCopy.id] and header.attrs["g:slot:" .. B[1].id] == 1 and header.attrs["g:slot:" .. ownCopy.id] == 1,
+	"switch: the gesture is on every slot holding Call of the Elements, as Totem Commands was")
 check(GestureCommandsCharDB.holdTicks == 4 and GestureCommandsCharDB.hold2Ticks == 9, "switch: Totem Commands' hold lengths kept")
 check(not totemOn and TotemCommandsDB.enabled == false and header.attrs.enabled == true, "switch: Totem Commands off (its own command), Gesture Commands on")
 check(printed[#printed]:find("switched"), "switch: confirmed")
@@ -529,6 +622,9 @@ C_Item.PickupItem = pickupItem
 check(#MACROS == userMacros + 2, "upgrade: no other macros touched")
 local forgot = true; for _, gesture in ipairs(GestureCommandsCharDB.gestures) do if gesture.macro then forgot = false end end
 check(forgot, "upgrade: gestures no longer point at macros")
+local upgraded = GestureCommandsCharDB.gestures
+check(upgraded[1].slots and upgraded[1].slots[61] and upgraded[1].slots[B[1].id] and upgraded[2].slots[62],
+	"upgrade: gestures from before 1.1.0 stay on every slot that held their Tap (the macro's slot included)")
 check(printed[#printed]:find("removed 1 macro "), "upgrade: tells the player")
 local printedBefore = #printed
 fireUpgrade("PLAYER_ENTERING_WORLD")
@@ -540,6 +636,12 @@ H.loadAddon({}, isEngineFile)
 world.combat = true
 local loggedInOk = pcall(world.fire, "ADDON_LOADED", "GestureCommands") and pcall(world.fire, "PLAYER_LOGIN")
 check(loggedInOk, "reload in combat: nothing protected at login")
+-- A slot change before the world is entered (the bars may still read empty) unbinds nothing.
+local early = GestureCommandsCharDB.gestures[1]
+local earlyAction = world.actions[61]
+world.actions[61] = nil; world.fire("ACTIONBAR_SLOT_CHANGED", 61)
+check(early.slots[61] == true, "a slot change before entering the world unbinds nothing")
+world.actions[61] = earlyAction
 world.combat = false
 world.fire("PLAYER_REGEN_ENABLED"); runTimers()
 check(world.R.drivers[GestureCommandsHeader] ~= nil, "...and the secure tick starts once combat ends")

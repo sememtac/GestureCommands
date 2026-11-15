@@ -43,24 +43,15 @@ function ns.RunTest()
 	if ns.IsTotemCommandsActive() then
 		ns.Print("Totem Commands is on - turn it off (/totemcommands off) to use Gesture Commands.");
 	end
-	local scan = Engine.ScanActionSlots();
 	for index, gesture in ipairs(db.gestures) do
 		local parts = {};
 		for _, mode in ipairs({ "trigger", "hold", "long" }) do
 			table.insert(parts, ns.MODE_LABELS[mode] .. ": " .. tostring((ns.GetActionDisplay(gesture[mode])) or "-"));
 		end
 		local slots = 0;
-		if gesture.trigger then
-			local keys = Engine.GetTriggerKeys(gesture.trigger, scan);
-			for _, info in ipairs(ns.GetCrossbarButtons()) do
-				local slot = info.button:GetID();
-				local kind, id, subType = GetActionInfo(slot);
-				if kind == "macro" then
-					kind = subType;
-				end
-				if keys["slot:" .. slot] or (kind and id and keys[kind .. ":" .. id]) then
-					slots = slots + 1;
-				end
+		for _, info in ipairs(ns.GetCrossbarButtons()) do
+			if Engine.GetSlotGesture(info.button:GetID()) == gesture then
+				slots = slots + 1;
 			end
 		end
 		ns.Print(("%d. %s  (on %d crossbar slot%s of this page)%s"):format(index, table.concat(parts, ", "), slots,

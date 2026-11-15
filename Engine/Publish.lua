@@ -1,5 +1,6 @@
 -- Publishing: the gestures -> secure header attributes (out of combat only).
---   "g:<key>" = gesture number, for every key the secure code finds the gesture's Tap by (ActionKinds.lua)
+--   "g:slot:<n>" = gesture number, for every action slot the gesture is bound to that holds its Tap
+--                  (GestureSlots.lua)
 --   "g<n>-<mode>-type" / "-attr" / "-value" = how to cast gesture n's hold / long-hold action
 --   enabled, holdTicks, hold2Ticks, debug
 
@@ -8,7 +9,7 @@ local Engine = ns.Engine;
 local header = ns.header;
 
 local publishedAttributes = {};
-local keyOwners = {}; -- "slot:<n>" / "spell:<id>" / "item:<id>" -> gesture number, from the last Publish
+local keyOwners = {}; -- "slot:<n>" -> gesture number, from the last Publish
 ns.conflicts = {}; -- gesture number -> the gesture number it shares a Tap with
 
 local function SetPublished(name, value)
@@ -16,17 +17,14 @@ local function SetPublished(name, value)
 	publishedAttributes[name] = true;
 end
 
--- The gesture a crossbar slot triggers, by the same lookup the secure code does (as of the last Publish).
+-- The gesture a crossbar slot triggers: as published, and while the slot still holds its Tap.
 function Engine.GetSlotGesture(slot)
 	local index = keyOwners["slot:" .. slot];
-	if not index then
-		local kind, id, subType = GetActionInfo(slot);
-		if kind == "macro" then
-			kind = subType;
-		end
-		index = kind and id and keyOwners[kind .. ":" .. id];
+	local gesture = index and ns.DB().gestures[index];
+	if gesture and gesture.trigger and Engine.SlotHoldsTrigger(slot, gesture.trigger) then
+		return gesture;
 	end
-	return index and ns.DB().gestures[index];
+	return nil;
 end
 
 -- Returns false if it has to wait for combat to end (it is retried then).
@@ -43,15 +41,20 @@ function ns.Publish()
 	ns.conflicts = {};
 	wipe(keyOwners);
 	local db = ns.DB();
-	local scan = Engine.ScanActionSlots();
 	for index, gesture in ipairs(db.gestures) do
-		if gesture.trigger then
-			for key in pairs(Engine.GetTriggerKeys(gesture.trigger, scan)) do
-				if keyOwners[key] and keyOwners[key] ~= index then
-					ns.conflicts[index] = keyOwners[key];
+		local trigger = gesture.trigger;
+		if trigger then
+			if gesture.slots and Engine.IsAvailable(trigger) then
+				for slot in pairs(gesture.slots) do
+					local key = "slot:" .. slot;
+					if Engine.SlotHoldsTrigger(slot, trigger) then
+						if keyOwners[key] and keyOwners[key] ~= index then
+							ns.conflicts[index] = keyOwners[key];
+						end
+						keyOwners[key] = index;
+						SetPublished("g:" .. key, index);
+					end
 				end
-				keyOwners[key] = index;
-				SetPublished("g:" .. key, index);
 			end
 			for _, mode in ipairs(ns.MODES) do
 				local action = gesture[mode];

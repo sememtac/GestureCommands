@@ -1,4 +1,4 @@
--- Action slots: what each one holds, scanned once per Publish rather than once per gesture.
+-- Action slots: what each one holds.
 
 local _, ns = ...;
 local Engine = ns.Engine;
@@ -10,33 +10,26 @@ function Engine.GetSlotActionText(slot)
 	return (C_ActionBar.GetActionText or GetActionText)(slot);
 end
 
-local Scan = {};
-Scan.__index = Scan;
-
--- C_Spell.GetSpellName, remembered for the scan.
-function Scan:SpellName(id)
-	local name = self.spellNames[id];
-	if name == nil then
-		name = C_Spell.GetSpellName(id) or false;
-		self.spellNames[id] = name;
+-- What a slot holds: { kind, id, subType (GetActionInfo), shows, text }, or nil if it's empty. `shows` is
+-- what the slot shows: a macro counts as the spell or item it shows (its subType). `text` is the macro's
+-- name, for macros only.
+function Engine.ReadSlot(slot)
+	local kind, id, subType = GetActionInfo(slot);
+	if not kind then
+		return nil;
 	end
-	return name or nil;
+	return {
+		kind = kind, id = id, subType = subType,
+		shows = (kind == "macro") and subType or kind,
+		text = (kind == "macro") and Engine.GetSlotActionText(slot) or nil,
+	};
 end
 
--- Returns a scan: scan.slots[slot] = { kind, id, subType (GetActionInfo), shows, text } for every slot that
--- holds something. `shows` is what the secure code sees the slot as: a macro counts as the spell or item it
--- shows (its subType). `text` is the macro's name, for macros only. All slots, or only `onlySlot`.
-function Engine.ScanActionSlots(onlySlot)
-	local scan = setmetatable({ slots = {}, spellNames = {} }, Scan);
-	for slot = onlySlot or 1, onlySlot or MAX_ACTION_SLOT do
-		local kind, id, subType = GetActionInfo(slot);
-		if kind then
-			scan.slots[slot] = {
-				kind = kind, id = id, subType = subType,
-				shows = (kind == "macro") and subType or kind,
-				text = (kind == "macro") and Engine.GetSlotActionText(slot) or nil,
-			};
-		end
+-- Every slot that holds something: slot -> ReadSlot(slot).
+function Engine.ScanActionSlots()
+	local slots = {};
+	for slot = 1, MAX_ACTION_SLOT do
+		slots[slot] = Engine.ReadSlot(slot);
 	end
-	return scan;
+	return slots;
 end

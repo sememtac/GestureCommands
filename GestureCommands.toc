@@ -21,6 +21,7 @@ Engine\SecureHeader.lua
 Engine\Publish.lua
 Engine\Labels.lua
 Engine\Gestures.lua
+Engine\GestureSlots.lua
 Engine\Binding.lua
 Engine\Feedback.lua
 Engine\TotemCommands.lua

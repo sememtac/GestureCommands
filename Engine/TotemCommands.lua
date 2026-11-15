@@ -40,9 +40,11 @@ function ns.SwitchFromTotemCommands()
 		end
 	end
 	if not index then
-		table.insert(db.gestures, { trigger = trigger, hold = GetTotemSpell("hold"), long = GetTotemSpell("long") });
+		table.insert(db.gestures, { trigger = trigger, hold = GetTotemSpell("hold"), long = GetTotemSpell("long"), slots = {} });
 		index = #db.gestures;
 	end
+	-- Totem Commands acted on every slot holding Call of the Elements: so does the gesture.
+	Engine.BindAllSlotsHolding(db.gestures[index]);
 	local totemDB = TotemCommandsDB;
 	if totemDB then
 		db.holdTicks = db.holdTicks or totemDB.holdTicks;

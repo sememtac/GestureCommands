@@ -1,5 +1,5 @@
 -- Gesture icons and names on the crossbar. A gesture with its own icon or name shows it on every crossbar
--- button that holds its Tap: the icon in the button's icon, the name in the text line macros use. Whenever
+-- button it's bound to: the icon in the button's icon, the name in the text line macros use. Whenever
 -- Blizzard sets either we set ours over it, in hooksecurefunc post-hooks so Blizzard's code stays untainted;
 -- the icon's mask, cooldown and usable / range colouring stay Blizzard's. Out-of-combat changes to gestures
 -- are applied with RefreshCrossbarLabels.

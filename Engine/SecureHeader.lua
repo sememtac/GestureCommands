@@ -45,10 +45,9 @@ header:SetAttribute("_onstate-tick", ns.Snippet("_onstate-tick", [[
 	end
 ]]));
 
--- Runs before Blizzard's OnClick on every wrapped crossbar button. Taps are looked up by slot number
--- ("g:slot:<n>", for mount, toy and macro Taps) or by what the slot shows ("g:spell:<id>" / "g:item:<id>";
--- a macro counts as what it shows); each holds the gesture number. The secure compiler refuses snippets with
--- the word "function" or a brace (see ns.Snippet), so the slot lookup is written out twice rather than shared.
+-- Runs before Blizzard's OnClick on every wrapped crossbar button. A gesture is looked up by slot number:
+-- "g:slot:<n>" holds the number of the gesture bound to that slot (Publish.lua). The secure compiler refuses
+-- snippets with the word "function" or a brace (see ns.Snippet).
 local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 	-- The release of the press that placed a gesture does nothing either (a mouse click acts on release).
 	if placedSlot then
@@ -86,18 +85,8 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 		if slot <= 0 then
 			return;
 		end
-		-- The gesture this slot holds: by its number (a mount, toy or macro Tap), else by what it shows (a
-		-- spell or item; a macro counts as what it shows).
+		-- The gesture bound to this slot, if any.
 		local gesture = control:GetAttribute("g:slot:" .. slot);
-		if not gesture then
-			local kind, id, subType = GetActionInfo(slot);
-			if kind == "macro" then
-				kind = subType;
-			end
-			if (kind == "spell" or kind == "item") and id then
-				gesture = control:GetAttribute("g:" .. kind .. ":" .. id);
-			end
-		end
 		if not gesture then
 			return;
 		end
@@ -132,18 +121,8 @@ local PRE_CLICK = ns.Snippet("OnClick-pre", [[
 	end
 	pressedSlot = nil;
 
-	-- The slot must still hold this gesture's Tap (the same lookup as on the press).
-	local current = control:GetAttribute("g:slot:" .. slot);
-	if not current then
-		local kind, id, subType = GetActionInfo(slot);
-		if kind == "macro" then
-			kind = subType;
-		end
-		if (kind == "spell" or kind == "item") and id then
-			current = control:GetAttribute("g:" .. kind .. ":" .. id);
-		end
-	end
-	if current ~= gesture then
+	-- The slot must still be this gesture's.
+	if control:GetAttribute("g:slot:" .. slot) ~= gesture then
 		return false;
 	end
 

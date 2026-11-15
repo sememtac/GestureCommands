@@ -1,5 +1,16 @@
 # Gesture Commands
 
+## 1.1.0
+
+- A gesture is on the crossbar buttons you bind it to (Bind, or dragging it from the list). The same spell,
+  item or macro put on another button some other way - the spellbook, your bags, the game's bind screen - is
+  just that: its own icon, cast on press, no hold. Before, every button holding the Tap was the gesture.
+- Two gestures can share a Tap on different buttons.
+- Moving a bound button's action to another slot takes the gesture with it; putting something else on it
+  unbinds it.
+- Updating keeps your setup: gestures stay on every button that holds their Tap now. To make one of those a
+  plain spell, put something else on it, then put the spell back.
+
 ## 1.0.1
 
 - The Tap can be any spell, item, toy, mount or macro. Before, it had to be a spell, an item, or a macro
