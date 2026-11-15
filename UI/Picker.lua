@@ -64,12 +64,35 @@ local function ForEachSpell(callback)
 	end
 end
 
+-- Profession skills (Fishing, Cooking, First Aid, Find Herbs...) are in their own book, not the spellbook's
+-- skill lines: for each profession GetProfessions() returns, spellbook slots spellOffset + 1..numSpells.
+local function ForEachProfessionSpell(callback)
+	if not (GetProfessions and GetProfessionInfo and C_SpellBook and C_SpellBook.GetSpellBookItemInfo) then
+		return;
+	end
+	local professions = { GetProfessions() }; -- nil where there's none
+	for index = 1, table.maxn(professions) do
+		local profession = professions[index];
+		if profession then
+			local _, _, _, _, numSpells, spellOffset = GetProfessionInfo(profession);
+			for slot = (spellOffset or 0) + 1, (spellOffset or 0) + (numSpells or 0) do
+				local info = C_SpellBook.GetSpellBookItemInfo(slot, Enum.SpellBookSpellBank.Player);
+				if info and info.itemType == Enum.SpellBookItemType.Spell and not info.isPassive then
+					callback(info);
+				end
+			end
+		end
+	end
+end
+
 local function GetSpellEntries()
 	local entries, seen = {}, {};
-	ForEachSpell(function(info)
+	local function Add(info)
 		local action = { kind = "spell", id = info.spellID or info.actionID, name = info.name };
 		AddUnique(entries, seen, info.name, { icon = info.iconID, name = info.name, action = action });
-	end);
+	end
+	ForEachSpell(Add);
+	ForEachProfessionSpell(Add);
 	return entries;
 end
 

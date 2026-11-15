@@ -8,6 +8,8 @@
 - Two gestures can share a Tap on different buttons.
 - Moving a bound button's action to another slot takes the gesture with it; putting something else on it
   unbinds it.
+- The picker's Spells list also has profession skills (Fishing, Cooking, First Aid, Find Herbs...), which
+  are in the Professions book rather than the spellbook.
 - The picker's Items list also has equippable items - a fishing pole, a weapon to swap to - and the
   weapons in your hands. Using one equips it.
 - Updating keeps your setup: gestures stay on every button that holds their Tap now. To make one of those a

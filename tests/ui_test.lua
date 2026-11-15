@@ -94,10 +94,22 @@ local book = {
 	{ itemType = 1, name = "Call of the Elements", spellID = 66842, iconID = 1005 },
 	{ itemType = 1, name = "Totemic Recall", spellID = 36936, iconID = 1006 },
 }
+-- Professions have their own book: spellbook slots after the skill lines (Blizzard_ProfessionsBook).
+-- GetProfessions() returns prof1, prof2, first aid, fishing, cooking, nil where there's none.
+local professionBook = {
+	[8] = { itemType = 1, name = "Fishing", spellID = 7620, iconID = 1010 },
+	[9] = { itemType = 1, name = "Cooking", spellID = 2550, iconID = 1011 },
+	[10] = { itemType = 1, name = "Lightning Bolt", spellID = 403, iconID = 1001 }, -- a duplicate name is listed once
+}
+function GetProfessions() return nil, nil, nil, 1, 2 end
+function GetProfessionInfo(index)
+	if index == 1 then return "Fishing", 1010, 1, 75, 1, 7 end
+	if index == 2 then return "Cooking", 1011, 1, 75, 2, 8 end
+end
 C_SpellBook = {
 	GetNumSpellBookSkillLines = function() return 1 end,
 	GetSpellBookSkillLineInfo = function() return { itemIndexOffset = 0, numSpellBookItems = #book } end,
-	GetSpellBookItemInfo = function(i) return book[i] end,
+	GetSpellBookItemInfo = function(i) return book[i] or professionBook[i] end,
 }
 C_Item = {
 	GetItemSpell = function(id) if id == 5512 or id == 6948 then return "Use", 1 end end,
@@ -211,7 +223,8 @@ local picker = GestureCommandsPicker
 check(picker and picker:IsShown() and picker.Title.text == "Choose: Tap", "A on a slot opens the action picker")
 check(picker.template:find("BasicFrameTemplateWithInset") and not templateUsed("IconSelectorPopupFrameTemplate"), "plain picker, not Blizzard's icon selector")
 local function cellNames() local t = {}; for _, c in ipairs(picker.cells) do if c.shown and c.entry then t[#t + 1] = c.entry.name or tostring(c.entry.icon) end end; return table.concat(t, ",") end
-check(cellNames() == "Lightning Bolt,Healing Wave,Call of the Elements,Totemic Recall", "spells: one per name, no passive or future spells (" .. cellNames() .. ")")
+check(cellNames() == "Lightning Bolt,Healing Wave,Call of the Elements,Totemic Recall,Fishing,Cooking",
+	"spells: one per name, no passive or future spells, then profession skills (" .. cellNames() .. ")")
 check(picker.cells[1].locked and not slots.trigger.locked, "picker highlight starts on the first entry")
 check(not picker.Clear.shown and not picker.NameBox.shown, "empty slot: no Clear; action mode has no name box")
 chooseTab("Items")

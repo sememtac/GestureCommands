@@ -59,6 +59,8 @@ For a Tap of each kind (spell, item, toy, mount, macro that casts a spell, macro
 
 ### Bind
 
+- [ ] Picker, Spells: your profession skills (Fishing, Cooking, First Aid, gathering) are listed and cast
+      as a Tap or hold. **verify**
 - [ ] Picker, Items: a fishing pole in the bags (and the weapon in your hands) is listed; as a Hold, it
       equips the pole. **verify**
 
