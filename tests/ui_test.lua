@@ -101,14 +101,18 @@ C_SpellBook = {
 }
 C_Item = {
 	GetItemSpell = function(id) if id == 5512 or id == 6948 then return "Use", 1 end end,
-	GetItemNameByID = function(id) return ({ [5512] = "Healthstone", [6948] = "Hearthstone", [2589] = "Linen Cloth" })[id] end,
+	GetItemNameByID = function(id) return ({ [5512] = "Healthstone", [6948] = "Hearthstone", [2589] = "Linen Cloth",
+		[6256] = "Fishing Pole", [25] = "Worn Shortsword", [6125] = "Brawler's Harness" })[id] end,
+	IsEquippableItem = function(id) return id == 6256 or id == 25 or id == 6125 end,
 	GetItemIconByID = function(id) return 2000 + id end,
 }
-function GetInventoryItemID() return nil end
+local worn = {} -- inventory slot -> item ID
+function GetInventoryItemID(_, slot) return worn[slot] end
 function GetInventoryItemTexture() return nil end
+local bagItems = { { itemID = 5512, iconFileID = 3001 }, { itemID = 2589, iconFileID = 3002 }, { itemID = 6948, iconFileID = 3003 } }
 C_Container = {
-	GetContainerNumSlots = function(bag) return bag == 0 and 3 or 0 end,
-	GetContainerItemInfo = function(bag, slot) return ({ { itemID = 5512, iconFileID = 3001 }, { itemID = 2589, iconFileID = 3002 }, { itemID = 6948, iconFileID = 3003 } })[slot] end,
+	GetContainerNumSlots = function(bag) return bag == 0 and 4 or 0 end,
+	GetContainerItemInfo = function(bag, slot) return bagItems[slot] end,
 }
 C_MountJournal = {
 	GetMountIDs = function() return { 6, 7 } end,
@@ -212,6 +216,16 @@ check(picker.cells[1].locked and not slots.trigger.locked, "picker highlight sta
 check(not picker.Clear.shown and not picker.NameBox.shown, "empty slot: no Clear; action mode has no name box")
 chooseTab("Items")
 check(cellNames() == "Healthstone,Hearthstone", "items: only ones with a Use effect (" .. cellNames() .. ")")
+-- Equippable items too (using one equips it): a fishing pole in the bags, the weapon in your hands; not
+-- the armour you wear (using it does nothing).
+bagItems[4] = { itemID = 6256, iconFileID = 3004 }
+worn[5], worn[16] = 6125, 25
+chooseTab("Spells"); chooseTab("Items")
+check(cellNames() == "Worn Shortsword,Healthstone,Hearthstone,Fishing Pole",
+	"items: also equippable ones in the bags and the weapons you hold, not worn armour (" .. cellNames() .. ")")
+bagItems[4] = nil
+worn[5], worn[16] = nil, nil
+chooseTab("Spells"); chooseTab("Items")
 chooseTab("Mounts")
 check(cellNames() == "Brown Horse", "mounts: collected only")
 chooseTab("Spells")

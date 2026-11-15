@@ -74,23 +74,32 @@ local function GetSpellEntries()
 end
 
 -- Equipped and carried items with a Use effect.
+-- Items that do something when used: those with a Use effect, and equippable ones in the bags (using one
+-- equips it: a fishing pole, a weapon to swap to). Of what's worn, the weapons too, as the pole may be in
+-- your hands now; worn armour does nothing when used.
+local WEAPON_SLOTS = { [INVSLOT_MAINHAND or 16] = true, [INVSLOT_OFFHAND or 17] = true, [INVSLOT_RANGED or 18] = true };
+
+local function IsEquippable(itemID)
+	return C_Item.IsEquippableItem ~= nil and C_Item.IsEquippableItem(itemID) and true or false;
+end
+
 local function GetItemEntries()
 	local entries, seen = {}, {};
-	local function Add(itemID, icon)
-		if itemID and C_Item.GetItemSpell(itemID) then
+	local function Add(itemID, icon, equipping)
+		if itemID and (C_Item.GetItemSpell(itemID) or equipping) then
 			local name = C_Item.GetItemNameByID(itemID);
 			AddUnique(entries, seen, itemID, { icon = icon or C_Item.GetItemIconByID(itemID), name = name,
 				action = { kind = "item", id = itemID, name = name } });
 		end
 	end
 	for slot = 1, 19 do
-		Add(GetInventoryItemID("player", slot), GetInventoryItemTexture("player", slot));
+		Add(GetInventoryItemID("player", slot), GetInventoryItemTexture("player", slot), WEAPON_SLOTS[slot]);
 	end
 	for bag = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4 do
 		for slot = 1, C_Container.GetContainerNumSlots(bag) do
 			local info = C_Container.GetContainerItemInfo(bag, slot);
 			if info then
-				Add(info.itemID, info.iconFileID);
+				Add(info.itemID, info.iconFileID, IsEquippable(info.itemID));
 			end
 		end
 	end

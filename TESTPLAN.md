@@ -59,6 +59,9 @@ For a Tap of each kind (spell, item, toy, mount, macro that casts a spell, macro
 
 ### Bind
 
+- [ ] Picker, Items: a fishing pole in the bags (and the weapon in your hands) is listed; as a Hold, it
+      equips the pole. **verify**
+
 - [ ] Bind a gesture with Bind, and with a mouse drag from the list: those buttons show the gesture's icon and
       do its holds.
 - [ ] Put the gesture's Tap spell on another button from the spellbook or the game's bind screen: that
