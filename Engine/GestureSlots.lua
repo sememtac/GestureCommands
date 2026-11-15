@@ -49,11 +49,20 @@ function Engine.ExpectDrop(gesture)
 	expected = { gesture = gesture, untilTime = GetTime() + DROP_TIMEOUT };
 end
 
+-- The gesture expected to be dropped: not after the timeout, nor once it's deleted.
 local function ExpectedGesture()
 	if expected and GetTime() > expected.untilTime then
 		expected = nil;
 	end
-	return expected and expected.gesture;
+	if expected then
+		for _, gesture in ipairs(ns.DB().gestures) do
+			if gesture == expected.gesture then
+				return gesture;
+			end
+		end
+		expected = nil;
+	end
+	return nil;
 end
 
 -- Before 1.1.0 a gesture was on every slot holding its Tap (a macro showing it too). Those gestures have

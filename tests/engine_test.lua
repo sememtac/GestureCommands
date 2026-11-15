@@ -438,6 +438,13 @@ call(ns.PickupGesture, mover); world.time = world.time + 120
 placeOwn(moveFrom, { "spell", 331 }); world.cursor = nil
 world.time = world.time - 120
 check(header.attrs["g:slot:" .. moveFrom.id] == nil, "a drag older than a minute: not a gesture drop")
+-- A gesture deleted while it's being dragged: dropping it doesn't take a button from another gesture.
+bind(mover, moveTo)
+local doomed = call(ns.AddGesture, { trigger = { kind = "spell", id = 331, name = "Healing Wave" } })
+call(ns.PickupGesture, doomed)
+call(ns.RemoveGesture, doomed)
+dropOn(moveTo)
+check(header.attrs["g:slot:" .. moveTo.id] == mover, "a gesture deleted mid-drag: dropping it doesn't unbind another gesture's button")
 call(ns.RemoveGesture, mover); world.actions[moveFrom.id], world.actions[moveTo.id] = nil, nil
 for _, index in ipairs({ toy, panic, horse }) do call(ns.RemoveGesture, index) end
 world.actions[B[7].id], world.actions[B[8].id], world.actions[mountTarget.id], world.actions[toyTarget.id] = nil, nil, nil, nil

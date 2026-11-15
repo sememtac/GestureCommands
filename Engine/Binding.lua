@@ -1,8 +1,9 @@
 -- Putting a gesture on the crossbar: its Tap action goes on a crossbar slot, and that slot is then bound to
 -- the gesture (GestureSlots.lua). With a mouse the Tap is put on the cursor (PickupGesture). With a
 -- controller there is no way to drop a cursor action on the crossbar, so in place mode the next crossbar
--- press (caught and swallowed by the secure hook) picks the slot and the Tap is put there out of combat. Place mode times out if no crossbar
--- button is pressed; the setup window shows a banner meanwhile (ns.OnPlacingChanged).
+-- press (caught and swallowed by the secure hook) picks the slot and the Tap is put there out of combat.
+-- Place mode times out if no crossbar button is pressed; the setup window shows a banner meanwhile
+-- (ns.OnPlacingChanged).
 
 local _, ns = ...;
 local Engine = ns.Engine;
